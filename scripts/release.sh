@@ -24,7 +24,8 @@ sed -i '' "1,/^version = /s/^version = .*/version = \"$version\"/" src-tauri/Car
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 (cd src-tauri && cargo update -q --workspace)
 
-git commit -qam "Gamestudio $version"
+# Nothing to commit when the files already carry this version (the first release).
+git diff --quiet || git commit -qam "Gamestudio $version"
 git tag "v$version"
 git push -q origin main "v$version"
 echo "v$version poussée. La release se construit : gh run watch --repo $(gh repo view --json nameWithOwner -q .nameWithOwner)"
