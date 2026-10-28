@@ -33,7 +33,10 @@ Roadmap et projet
   studio project                             les réglages du projet
   studio project set [--name …] [--color …] [--path …] [--github …] [--base …] [--assets a,b] [--setup …]
                      [--vision <texte>]
-  studio project add --name <nom> --key <CLÉ> --path <dépôt> [mêmes options]
+  studio project add [--path <dépôt>] [--name <nom> --key <CLÉ>] [mêmes options]
+                                             suit le jeu du dépôt (par défaut celui du dossier courant) ; ses
+                                             données reviennent si le dépôt a déjà une branche gamestudio, sinon
+                                             il faut un nom et une clé
   studio projects                            les jeux suivis
   studio import <plan.json|-> [--dry-run]    importe tout un plan (jalons, éléments, réglages) ; --dry-run montre
                                              ce qui serait créé sans rien écrire. Format : studio guide setup
@@ -197,13 +200,7 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
             patch: Value::Object(fields(args, &PROJECT_TEXTS, &["--assets"])?),
         },
         ("project", Some("add")) => {
-            let patch = fields(args, &PROJECT_TEXTS, &["--assets"])?;
-            for needed in ["name", "key", "path"] {
-                if !patch.contains_key(needed) {
-                    return Err(format!("Il manque --{needed}"));
-                }
-            }
-            Request::ProjectAdd { patch: Value::Object(patch) }
+            Request::ProjectAdd { ctx: context(args), patch: Value::Object(fields(args, &PROJECT_TEXTS, &["--assets"])?) }
         }
         ("project", Some(other)) => return Err(format!("studio project {other} n'existe pas (set ou add)")),
         ("import", _) => {
@@ -355,8 +352,10 @@ fn print_result(cmd: &str, v: &Value) {
         }
         "sync" => match v.get("error").and_then(Value::as_str) {
             Some(e) => println!("Synchro en erreur : {e}"),
-            None if v["remote"].is_null() => println!("Données enregistrées (pas encore de dépôt GitHub)."),
-            None => println!("Données synchronisées avec {}", text(v, "remote")),
+            None => {
+                let remotes = v["remotes"].as_object().map(|m| m.len()).unwrap_or(0);
+                println!("Données synchronisées ({remotes} jeu{} relié{} à son dépôt).", if remotes > 1 { "x" } else { "" }, if remotes > 1 { "s" } else { "" });
+            }
         },
         _ => {}
     }
@@ -479,7 +478,9 @@ mod tests {
         assert_eq!(v["fields"]["title"], "Démo Steam");
         let v = req(&["project", "set", "--assets", "assets,content"]);
         assert_eq!(v["patch"]["assets"], json!(["assets", "content"]));
-        assert!(request(&args(&["project", "add", "--name", "X"])).is_err());
+        let v = req(&["project", "add", "--name", "Mon jeu", "--key", "JEU"]);
+        assert_eq!(v["cmd"], "project-add");
+        assert_eq!(v["patch"]["key"], "JEU");
     }
 
     #[test]

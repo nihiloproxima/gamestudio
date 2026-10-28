@@ -117,11 +117,13 @@ Si les docs du dépôt (CLAUDE.md, PLAN.md) font double emploi avec Gamestudio, 
 
 ## Nouveau jeu
 
-Si `studio project` répond que le dossier n'appartient à aucun projet, demande à l'utilisateur le nom et une clé de 2 à 5
-majuscules (JEU, RPG…), puis, avec son accord :
+Si `studio project` répond que le dossier n'appartient à aucun projet, demande à l'utilisateur le nom du jeu et une
+clé de 2 à 5 majuscules pour numéroter ses éléments (JEU, RPG…), puis, avec son accord, depuis le dépôt du jeu :
 
 ```sh
-studio project add --name "Nom" --key CLE --path ~/code/depot --github proprietaire/depot
+studio project add --name "Nom" --key CLE
 ```
 
-et reprends à l'étape 1.
+Le suivi vivra sur une branche `gamestudio` du dépôt, sans lien avec l'historique du code. Si cette branche existe
+déjà (un autre Mac), ses données reviennent telles quelles : reprends alors à l'étape 1 pour compléter, pas pour
+refaire.

@@ -21,37 +21,6 @@ pub async fn sync_now() -> Result<sync::SyncStatus, String> {
     blocking(sync::now).await
 }
 
-#[tauri::command]
-pub async fn data_init(app: AppHandle, clone_url: Option<String>) -> Result<sync::SyncStatus, String> {
-    blocking(move || {
-        match clone_url.as_deref().filter(|u| !u.trim().is_empty()) {
-            Some(url) => sync::init_clone(url)?,
-            None => sync::init_fresh()?,
-        }
-        control::data_changed(&app);
-        Ok(sync::status())
-    })
-    .await
-}
-
-#[tauri::command]
-pub async fn sync_create_remote(name: String) -> Result<sync::SyncStatus, String> {
-    blocking(move || {
-        sync::create_remote(&name)?;
-        sync::touch();
-        Ok(sync::status())
-    })
-    .await
-}
-
-#[tauri::command]
-pub async fn sync_link_remote(url: String) -> Result<sync::SyncStatus, String> {
-    blocking(move || {
-        sync::link_remote(&url)?;
-        sync::now()
-    })
-    .await
-}
 
 // Projects, milestones, items -------------------------------------------------------------------------------------
 
@@ -61,19 +30,27 @@ pub async fn projects_list() -> Result<Vec<store::Project>, String> {
 }
 
 #[tauri::command]
-pub async fn project_save(
-    app: AppHandle,
-    id: Option<String>,
-    meta: store::ProjectMeta,
-    vision: String,
-) -> Result<store::Project, String> {
+pub async fn project_save(app: AppHandle, id: String, meta: store::ProjectMeta, vision: String) -> Result<store::Project, String> {
     blocking(move || {
         // What the repo already says (GitHub repo, default branch) need not be typed.
         let mut meta = meta;
         worktrees::fill_from_repo(&mut meta);
-        let project = store::save_project(id, meta, vision)?;
+        let project = store::save_project(&id, meta, vision)?;
         control::data_changed(&app);
         Ok(project)
+    })
+    .await
+}
+
+/// Adds a game from its repo; its data comes back if the repo already has a `gamestudio` branch.
+#[tauri::command]
+pub async fn project_attach(app: AppHandle, meta: store::ProjectMeta) -> Result<store::Project, String> {
+    blocking(move || {
+        let mut meta = meta;
+        worktrees::fill_from_repo(&mut meta);
+        let id = sync::attach(meta)?;
+        control::data_changed(&app);
+        store::project(&id)
     })
     .await
 }

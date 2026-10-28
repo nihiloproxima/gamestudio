@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { Cloud, CloudOff, Github, Plus, RefreshCw, Sparkles, TriangleAlert } from "lucide-vue-next";
+import { Cloud, CloudOff, Plus, RefreshCw, Sparkles, TriangleAlert } from "lucide-vue-next";
 import ProjectGlyph from "../components/ProjectGlyph.vue";
 import type { ProjectMeta } from "../domain/types";
-import { fail, notify, now, project, saveProject, setupWithClaude, store, switchProject, syncNow } from "../state/store";
-import { api } from "../lib/api";
+import { attachProject, notify, now, project, saveProject, setupWithClaude, store, syncNow } from "../state/store";
 import { since } from "../lib/format";
 
-/** The current game's settings (synced, so they hold on every machine), a new game, and where the data lives. */
+/** The current game's settings (synced through its data branch, except its path on this Mac), a new game, and
+ *  where its data lives. */
 const SWATCHES = ["#ff79c6", "#8bd5ca", "#ef9f76", "#89b4fa", "#cba6f7", "#a6e3a1", "#f9e2af", "#f38ba8", "#94e2d5", "#b4befe"];
 
 const creating = ref(false);
@@ -54,42 +54,18 @@ async function save() {
     assets: form.assets.split(/[\n,]/).map((a) => a.trim()).filter(Boolean),
     setup: form.setup.trim(),
   };
-  const saved = await saveProject(creating.value ? null : (project.value?.id ?? null), meta, creating.value ? "" : (project.value?.vision ?? ""));
-  if (!saved) return;
   if (creating.value) {
+    const added = await attachProject(meta);
+    if (!added) return;
     creating.value = false;
-    await switchProject(saved.id);
-    notify(`${saved.name} ajouté`, { action: { label: "Configurer avec Claude", run: () => setupWithClaude(saved.id) } });
-  } else {
-    notify("Réglages enregistrés");
+    notify(`${added.name} ajouté`, { action: { label: "Configurer avec Claude", run: () => setupWithClaude(added.id) } });
+    return;
   }
+  const id = project.value?.id;
+  if (id && (await saveProject(id, meta, project.value?.vision ?? ""))) notify("Réglages enregistrés");
 }
 
-// Sync.
-const repoName = ref("gamestudio-data");
-const linkUrl = ref("");
-const busy = ref(false);
-async function createRemote() {
-  busy.value = true;
-  try {
-    store.sync = await api.syncCreateRemote(repoName.value);
-    notify("Dépôt privé créé, les données y sont envoyées");
-  } catch (e) {
-    fail(e, "Création du dépôt");
-  } finally {
-    busy.value = false;
-  }
-}
-async function linkRemote() {
-  busy.value = true;
-  try {
-    store.sync = await api.syncLinkRemote(linkUrl.value);
-  } catch (e) {
-    fail(e, "Liaison du dépôt");
-  } finally {
-    busy.value = false;
-  }
-}
+const remote = computed(() => (project.value ? store.sync?.remotes[project.value.id] : undefined));
 </script>
 
 <template>
@@ -107,7 +83,9 @@ async function linkRemote() {
             <ProjectGlyph :project="{ name: form.name || '?', color: form.color }" :size="34" />
             <div>
               <h2>{{ creating ? "Nouveau jeu" : form.name }}</h2>
-              <p class="muted">Synchronisé avec les données : le même réglage sur chaque Mac.</p>
+              <p class="muted">
+                {{ creating ? "Si son dépôt a déjà une branche gamestudio, ses données reviennent telles quelles." : "Les mêmes réglages sur chaque Mac, sauf le chemin du dépôt." }}
+              </p>
             </div>
           </header>
           <form class="form" @submit.prevent="save">
@@ -169,38 +147,27 @@ async function linkRemote() {
           </form>
         </section>
 
-        <section v-if="!creating" class="card">
+        <section v-if="!creating && project" class="card">
           <header class="card-head">
-            <component :is="store.sync?.remote ? Cloud : CloudOff" :size="22" class="muted" />
+            <component :is="remote ? Cloud : CloudOff" :size="22" class="muted" />
             <div>
               <h2>Données et synchro</h2>
               <p class="muted">
-                Tout vit dans <code class="selectable">~/.gamestudio/data</code>, un fichier Markdown par élément,
-                versionné avec git.
+                Le suivi de {{ project.name }} vit sur la branche <code>gamestudio</code> de son dépôt, sans lien avec
+                l'historique du jeu : un fichier Markdown par élément, copié dans
+                <code class="selectable">~/.gamestudio/data/{{ project.id }}</code>.
               </p>
             </div>
           </header>
-          <template v-if="store.sync?.remote">
-            <p class="state">
-              Synchronisé avec <code class="selectable">{{ store.sync.remote }}</code>
-              <template v-if="store.sync.lastSync">, dernière synchro {{ since(store.sync.lastSync, now) }}</template>.
-              Un changement part quelques secondes après, et l'app récupère ceux des autres Mac toutes les 3 minutes.
-            </p>
-            <p v-if="store.sync.error" class="warn selectable"><TriangleAlert :size="14" />{{ store.sync.error }}</p>
-            <button class="btn btn-quiet" :disabled="store.sync.syncing" @click="syncNow"><RefreshCw />Synchroniser maintenant</button>
-          </template>
-          <template v-else>
-            <p class="state">Les données ne sont que sur ce Mac. Crée un dépôt GitHub privé pour les retrouver sur l'autre.</p>
-            <div class="inline">
-              <input v-model="repoName" class="field code" spellcheck="false" />
-              <button class="btn btn-solid" :disabled="busy || !repoName.trim()" @click="createRemote"><Github />Créer le dépôt privé</button>
-            </div>
-            <p class="muted small">Ou relie un dépôt vide qui existe déjà :</p>
-            <div class="inline">
-              <input v-model="linkUrl" class="field code" placeholder="git@github.com:compte/gamestudio-data.git" spellcheck="false" />
-              <button class="btn btn-quiet" :disabled="busy || !linkUrl.trim()" @click="linkRemote">Relier</button>
-            </div>
-          </template>
+          <p class="state">
+            <template v-if="remote">Synchronisé avec <code class="selectable">{{ remote }}</code></template>
+            <template v-else>Pas de dépôt distant : les données restent sur ce Mac</template>
+            <template v-if="store.sync?.lastSync">, dernière synchro {{ since(store.sync.lastSync, now) }}</template>. Un
+            changement part quelques secondes après, et l'app récupère ceux des autres Mac toutes les 3 minutes. Sur un
+            autre Mac, clone le jeu et ajoute-le : son suivi revient.
+          </p>
+          <p v-if="store.sync?.error" class="warn selectable"><TriangleAlert :size="14" />{{ store.sync.error }}</p>
+          <button class="btn btn-quiet" :disabled="store.sync?.syncing" @click="syncNow"><RefreshCw />Synchroniser maintenant</button>
         </section>
 
         <section v-if="!creating" class="card claude">
@@ -321,11 +288,6 @@ studio help                        tout le reste</pre>
   color: var(--subtext);
   font-size: var(--text-sm);
   line-height: 1.55;
-}
-.inline {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
 }
 .small {
   margin: 4px 0 8px;

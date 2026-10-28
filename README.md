@@ -13,8 +13,9 @@ Claude Code ou Codex en parallèle (terminaux, worktrees, VS Code), assets et pu
   survivent à la fermeture de l'app (tmux). Les hooks de Claude Code disent qui travaille et qui attend une réponse.
 - **Assets** : les images et les sons du jeu, les plus récents en tête (ceux que viennent de générer des agents).
 - **GitHub** : les pull requests du dépôt, leur CI et leurs revues.
-- **Tes données chez toi** : un fichier Markdown par élément dans `~/.gamestudio/data`, versionné avec git et
-  synchronisé avec un dépôt GitHub privé à toi. Changer de Mac revient à cloner ce dépôt.
+- **Le suivi vit avec le jeu** : un fichier Markdown par élément, sur une branche `gamestudio` du dépôt du jeu, sans
+  lien avec l'historique du code. Il se synchronise tout seul ; sur un autre Mac, clone le jeu, ajoute-le, et sa
+  roadmap revient.
 - **Pensé pour les agents** : la commande `studio` leur donne la fiche de leur tâche et leur permet de noter leurs
   avancées ou une idée. « Configurer avec Claude » lit le dépôt d'un jeu, pose ses questions, montre ce qu'il compte
   créer et remplit la roadmap une fois que tu as dit oui.
@@ -23,7 +24,8 @@ L'interface est en français.
 
 ## Prérequis
 
-macOS, `git`, `tmux`, et [`gh`](https://cli.github.com) connecté à ton compte (pull requests, dépôt de données).
+macOS, `git`, `tmux`, et [`gh`](https://cli.github.com) connecté à ton compte (pull requests). Tes jeux dans des
+dépôts git.
 [Claude Code](https://claude.com/claude-code) et/ou Codex pour les agents. Pour construire l'app : Node, `pnpm` et
 Rust.
 
@@ -34,8 +36,8 @@ pnpm install
 pnpm app:install      # construit /Applications/Gamestudio.app, la commande `studio` et le skill Claude Code
 ```
 
-Au premier lancement : « Commencer sur ce Mac », ajoute ton premier jeu (nom, clé, dépôt), puis dans les réglages
-« Créer le dépôt privé » pour la synchro. Sur un autre Mac : « Récupérer depuis GitHub ».
+Au premier lancement, indique le dépôt d'un jeu (avec un nom et une clé si c'est un nouveau jeu). Les autres
+s'ajoutent dans les réglages ou avec `studio project add` depuis leur dépôt.
 
 ## Développer
 
@@ -59,3 +61,7 @@ studio import plan.json --dry-run  # tout un plan (jalons, éléments, réglages
 studio guide setup                 # la marche à suivre pour qu'un agent configure un jeu
 studio help
 ```
+
+## Licence
+
+[MIT](LICENSE)

@@ -1,10 +1,13 @@
-//! Keeps `~/.gamestudio/data` in step with its GitHub remote, so switching machines is a pull away. One worker thread
-//! owns every git operation on it: it commits what changed, fetches, rebases onto the remote and pushes, a few seconds
-//! after the last edit and every few minutes otherwise. A conflicting rebase is aborted and reported, never forced.
+//! Each game's tracker data lives on a `gamestudio` branch of the game's own repo, so it travels with the game: clone
+//! the game on another Mac, add it to Gamestudio, and its roadmap comes back. The branch shares no history with the
+//! game's code and is checked out as a small separate clone in `~/.gamestudio/data/<project>`, never in the game's
+//! working tree. One worker thread owns every git operation on these clones: it commits what changed, fetches,
+//! rebases onto the remote and pushes, a few seconds after the last edit and every few minutes otherwise.
 
 use serde::Serialize;
+use std::collections::BTreeMap;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
@@ -12,23 +15,25 @@ use tauri::{AppHandle, Emitter};
 
 use crate::{paths, store};
 
-const BRANCH: &str = "main";
+/// The branch of each game's repo that holds its tracker data.
+pub const BRANCH: &str = "gamestudio";
 const PERIOD: Duration = Duration::from_secs(180);
 const DEBOUNCE: Duration = Duration::from_secs(6);
+const GITIGNORE: &str = ".*.tmp\n.DS_Store\n";
 
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncStatus {
-    /// The data folder exists and is a git repo.
-    pub initialized: bool,
-    pub remote: Option<String>,
     pub syncing: bool,
     pub last_sync: Option<String>,
+    /// Per game, prefixed by its name.
     pub error: Option<String>,
-    /// Changes on this machine that the remote does not have yet.
+    /// Changes on this machine that the remotes do not have yet.
     pub pending: u32,
     /// What the last sync merged that is worth knowing.
     pub notice: Option<String>,
+    /// Where each game's data is pushed, by project id.
+    pub remotes: BTreeMap<String, String>,
 }
 
 enum Msg {
@@ -43,9 +48,10 @@ static WORKER: OnceLock<Sender<Msg>> = OnceLock::new();
 
 pub fn status() -> SyncStatus {
     let mut current = STATUS.lock().unwrap().clone().unwrap_or_default();
-    let dir = paths::data_dir();
-    current.initialized = dir.join(".git").is_dir();
-    current.remote = current.initialized.then(|| remote_url(&dir)).flatten();
+    current.remotes = store::data_dirs()
+        .into_iter()
+        .filter_map(|(id, dir)| remote_url(&dir).map(|url| (id, url)))
+        .collect();
     current
 }
 
@@ -122,7 +128,7 @@ fn machine_name() -> String {
         .unwrap_or_else(|_| "ce Mac".into())
 }
 
-/// Commits whatever changed in the data folder. Returns whether there was anything.
+/// Commits whatever changed in a game's data. Returns whether there was anything.
 fn commit_local(dir: &Path) -> Result<bool, String> {
     let _guard = store::lock();
     paths::run(git(dir).args(["add", "-A"]))?;
@@ -145,26 +151,31 @@ fn count(dir: &Path, range: &str) -> u32 {
 }
 
 fn run_once(app: &AppHandle) -> Result<(), String> {
-    let dir = paths::data_dir();
-    if !dir.join(".git").is_dir() {
+    let dirs = store::data_dirs();
+    if dirs.is_empty() {
         return Ok(());
     }
     set_status(app, |s| s.syncing = true);
-    let result = sync(app, &dir);
-    let pending = unpushed(&dir);
+    let (mut errors, mut notices, mut pending) = (Vec::new(), Vec::new(), 0);
+    for (id, dir) in &dirs {
+        let name = store::project(id).map(|p| p.meta.name).unwrap_or_else(|_| id.clone());
+        match sync(app, dir) {
+            Ok(Some(notice)) => notices.push(format!("{name} : {notice}")),
+            Ok(None) => {}
+            Err(e) => errors.push(format!("{name} : {e}")),
+        }
+        pending += unpushed(dir);
+    }
     set_status(app, |s| {
         s.syncing = false;
         s.pending = pending;
-        match &result {
-            Ok(notice) => {
-                s.error = None;
-                s.notice = notice.clone();
-                s.last_sync = Some(paths::now_iso());
-            }
-            Err(e) => s.error = Some(e.clone()),
+        s.error = (!errors.is_empty()).then(|| errors.join("\n"));
+        if errors.is_empty() {
+            s.last_sync = Some(paths::now_iso());
         }
+        s.notice = (!notices.is_empty()).then(|| notices.join("\n"));
     });
-    result.map(|_| ())
+    if errors.is_empty() { Ok(()) } else { Err(errors.join("\n")) }
 }
 
 /// Local commits the remote does not have yet.
@@ -190,18 +201,20 @@ fn changed_on_both_sides(dir: &Path, upstream: &str) -> Vec<String> {
     names(format!("{base}..HEAD")).into_iter().filter(|f| theirs.contains(f)).collect()
 }
 
-/// `testgame/items/TST-3.md` gives `TST-3`.
+/// `items/JEU-3.md` gives `JEU-3`.
 fn short_name(file: &str) -> &str {
     file.rsplit('/').next().unwrap_or(file).trim_end_matches(".md")
 }
 
-/// One round trip. Returns a notice when both machines had edited the same files.
+/// One round trip for one game. Returns a notice when both machines had edited the same files.
 fn sync(app: &AppHandle, dir: &Path) -> Result<Option<String>, String> {
     commit_local(dir)?;
     if remote_url(dir).is_none() {
         return Ok(None);
     }
-    paths::run(git(dir).args(["fetch", "-q", "origin"])).map_err(|e| format!("GitHub injoignable : {}", first_line(&e)))?;
+    paths::run(git(dir).args(["fetch", "-q", "origin", BRANCH]))
+        .or_else(|e| if e.contains("couldn't find remote ref") { Ok(String::new()) } else { Err(e) })
+        .map_err(|e| format!("dépôt injoignable : {}", first_line(&e)))?;
     let upstream = format!("origin/{BRANCH}");
     let remote_exists = paths::run(git(dir).args(["rev-parse", "--verify", "-q", &upstream])).is_ok();
 
@@ -214,7 +227,7 @@ fn sync(app: &AppHandle, dir: &Path) -> Result<Option<String>, String> {
         if let Err(e) = paths::run(git(dir).args(["rebase", "-q", "-X", "theirs", &upstream])) {
             let _ = paths::run(git(dir).args(["rebase", "--abort"]));
             return Err(format!(
-                "Conflit avec une autre machine, rien n'a été écrasé. À résoudre dans {} (git status) : {}",
+                "conflit avec une autre machine, rien n'a été écrasé. À résoudre dans {} (git status) : {}",
                 dir.display(),
                 first_line(&e)
             ));
@@ -233,7 +246,7 @@ fn sync(app: &AppHandle, dir: &Path) -> Result<Option<String>, String> {
 
     if unpushed(dir) > 0 {
         paths::run(git(dir).args(["push", "-q", "origin", &format!("HEAD:{BRANCH}")]))
-            .map_err(|e| format!("Envoi refusé, nouvel essai à la prochaine synchro : {}", first_line(&e)))?;
+            .map_err(|e| format!("envoi refusé, nouvel essai à la prochaine synchro : {}", first_line(&e)))?;
     }
     Ok(notice)
 }
@@ -243,62 +256,60 @@ fn first_line(text: &str) -> &str {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Setting the data folder up
+// Adding a game
 
-const GITIGNORE: &str = ".*.tmp\n.DS_Store\n";
-
-/// First machine: an empty data repo; games are added next.
-pub fn init_fresh() -> Result<(), String> {
-    let dir = paths::data_dir();
-    if dir.join(".git").exists() {
-        return Err("Les données existent déjà".into());
+/// Whether `remote` has the data branch. A remote that cannot be reached is an error, not a "no": creating a second
+/// history for a game that already has one would fork its data.
+fn has_branch(repo: &Path, remote: &str) -> Result<bool, String> {
+    let out = git(repo)
+        .args(["ls-remote", "--exit-code", "--heads", remote, BRANCH])
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| e.to_string())?;
+    match out.status.code() {
+        Some(0) => Ok(true),
+        Some(2) => Ok(false),
+        _ => Err(format!(
+            "Impossible de joindre {remote} pour savoir s'il a déjà des données Gamestudio : {}",
+            first_line(&String::from_utf8_lossy(&out.stderr))
+        )),
     }
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    paths::run(git(&dir).args(["init", "-q", "-b", BRANCH]))?;
+}
+
+/// Starts tracking the game whose repo is at `meta.path`, and returns its project id. When the repo (its `origin`,
+/// else the repo itself) already has the data branch, its data comes back as it is, from another machine or an
+/// earlier install; otherwise a new branch starts from `meta`.
+pub fn attach(meta: store::ProjectMeta) -> Result<String, String> {
+    let repo = paths::canonical(&paths::expand(meta.path.trim()));
+    if !repo.join(".git").exists() {
+        return Err(format!("{} n'est pas un dépôt git", meta.path.trim()));
+    }
+    if let Some((id, _)) = store::registry().into_iter().find(|(_, p)| paths::canonical(&paths::expand(p)) == repo) {
+        return Err(format!("Ce dépôt est déjà suivi (projet {id})"));
+    }
+    let remote = remote_url(&repo).unwrap_or_else(|| repo.display().to_string());
+    std::fs::create_dir_all(paths::data_dir()).map_err(|e| e.to_string())?;
+
+    if has_branch(&repo, &remote)? {
+        let tmp = paths::data_dir().join(format!(".attach-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        paths::run(git(&paths::data_dir()).args(["clone", "-q", "--single-branch", "--branch", BRANCH, &remote]).arg(&tmp))
+            .map_err(|e| format!("Récupération des données impossible : {}", first_line(&e)))?;
+        let name = store::read_name(&tmp).unwrap_or_else(|| meta.name.clone());
+        let id = store::free_id(&name)?;
+        std::fs::rename(&tmp, paths::data_dir().join(&id)).map_err(|e| e.to_string())?;
+        store::register(&id, &meta.path)?;
+        return Ok(id);
+    }
+
+    store::validate_project(&meta)?;
+    let id = store::free_id(&meta.name)?;
+    let dir = paths::data_dir().join(&id);
+    paths::run(git(&paths::data_dir()).args(["init", "-q", "-b", BRANCH]).arg(&dir))?;
     paths::write_atomic(&dir.join(".gitignore"), GITIGNORE)?;
+    store::save_project(&id, meta, String::new())?;
     commit_local(&dir)?;
-    Ok(())
-}
-
-/// Another machine: the data comes from the GitHub repo the first one pushed to.
-pub fn init_clone(url: &str) -> Result<(), String> {
-    let dir = paths::data_dir();
-    if dir.exists() && std::fs::read_dir(&dir).map(|mut d| d.next().is_some()).unwrap_or(false) {
-        return Err(format!("{} n'est pas vide", dir.display()));
-    }
-    std::fs::create_dir_all(paths::studio_dir()).map_err(|e| e.to_string())?;
-    let mut cmd = git(&paths::studio_dir());
-    paths::run(cmd.args(["clone", "-q", url.trim()]).arg(&dir)).map_err(|e| format!("Clonage impossible : {e}"))?;
-    Ok(())
-}
-
-/// Creates a private GitHub repo for the data and pushes to it.
-pub fn create_remote(name: &str) -> Result<String, String> {
-    let dir = paths::data_dir();
-    if remote_url(&dir).is_some() {
-        return Err("Les données ont déjà un dépôt distant".into());
-    }
-    let name = name.trim();
-    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || "-_./".contains(c)) {
-        return Err(format!("Nom de dépôt invalide : {name}"));
-    }
-    commit_local(&dir)?;
-    paths::run(
-        Command::new("gh")
-            .args(["repo", "create", name, "--private", "--source"])
-            .arg(&dir)
-            .args(["--remote", "origin", "--push"]),
-    )
-    .map_err(|e| format!("gh repo create a échoué : {e}"))?;
-    remote_url(&dir).ok_or_else(|| "Dépôt créé, mais le remote origin manque".into())
-}
-
-/// Points the data at an existing, empty remote.
-pub fn link_remote(url: &str) -> Result<(), String> {
-    let dir = paths::data_dir();
-    if remote_url(&dir).is_some() {
-        return Err("Les données ont déjà un dépôt distant".into());
-    }
-    paths::run(git(&dir).args(["remote", "add", "origin", url.trim()]))?;
-    Ok(())
+    paths::run(git(&dir).args(["remote", "add", "origin", &remote]))?;
+    touch();
+    Ok(id)
 }

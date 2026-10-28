@@ -5,6 +5,7 @@
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
@@ -28,7 +29,8 @@ pub struct ProjectMeta {
     /// Item prefix, `JEU` gives `JEU-12`.
     pub key: String,
     pub color: String,
-    /// Main checkout, `~/`-relative so it holds on every machine.
+    /// Main checkout on this machine. Kept in `repos.json`, not in the synced file: each machine has its own.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub path: String,
     /// `owner/name` on GitHub, for PRs and cloning on a new machine.
     #[serde(default)]
@@ -193,23 +195,68 @@ fn project_dir(id: &str) -> PathBuf {
     paths::data_dir().join(id)
 }
 
-fn read_project(dir: &Path) -> Result<Project, String> {
-    let (meta, vision): (ProjectMeta, String) = read_doc(&dir.join("project.md"))?;
-    let present = paths::expand(&meta.path).join(".git").exists();
-    Ok(Project { id: stem(dir), meta, vision, present })
+// Where each game's repo is on this machine, by project id: `~/.gamestudio/repos.json`, never synced.
+fn registry_file() -> PathBuf {
+    paths::studio_dir().join("repos.json")
 }
 
-pub fn projects() -> Vec<Project> {
-    let _guard = lock();
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(paths::data_dir())
+pub fn registry() -> BTreeMap<String, String> {
+    std::fs::read_to_string(registry_file()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+pub fn register(id: &str, path: &str) -> Result<(), String> {
+    let mut all = registry();
+    all.insert(id.to_string(), path.trim().to_string());
+    paths::write_atomic(&registry_file(), &serde_json::to_string_pretty(&all).map_err(|e| e.to_string())?)
+}
+
+/// Every game's data folder (a clone of its data branch), by project id.
+pub fn data_dirs() -> Vec<(String, PathBuf)> {
+    let mut dirs: Vec<(String, PathBuf)> = std::fs::read_dir(paths::data_dir())
         .into_iter()
         .flatten()
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| p.join("project.md").is_file())
+        .filter(|p| !stem(p).starts_with('.') && p.join("project.md").is_file())
+        .map(|p| (stem(&p), p))
         .collect();
     dirs.sort();
-    dirs.iter().filter_map(|d| read_project(d).map_err(|e| eprintln!("{e}")).ok()).collect()
+    dirs
+}
+
+fn read_project(dir: &Path) -> Result<Project, String> {
+    let (mut meta, vision): (ProjectMeta, String) = read_doc(&dir.join("project.md"))?;
+    let id = stem(dir);
+    if let Some(path) = registry().remove(&id) {
+        meta.path = path;
+    }
+    let present = !meta.path.is_empty() && paths::expand(&meta.path).join(".git").exists();
+    Ok(Project { id, meta, vision, present })
+}
+
+/// The name in a data folder's `project.md`, to name a folder being restored.
+pub fn read_name(dir: &Path) -> Option<String> {
+    read_doc::<ProjectMeta>(&dir.join("project.md")).ok().map(|(m, _)| m.name)
+}
+
+/// A folder name for a new game, from its name, not taken yet.
+pub fn free_id(name: &str) -> Result<String, String> {
+    let base = slugify(name, 32);
+    if base.is_empty() {
+        return Err("Le projet n'a pas de nom".into());
+    }
+    let mut id = base.clone();
+    let mut n = 2;
+    while project_dir(&id).exists() {
+        id = format!("{base}-{n}");
+        n += 1;
+    }
+    Ok(id)
+}
+
+pub fn projects() -> Vec<Project> {
+    let _guard = lock();
+    data_dirs().iter().filter_map(|(_, d)| read_project(d).map_err(|e| eprintln!("{e}")).ok()).collect()
 }
 
 pub fn project(id: &str) -> Result<Project, String> {
@@ -217,7 +264,7 @@ pub fn project(id: &str) -> Result<Project, String> {
     read_project(&project_dir(id)).map_err(|_| format!("Projet inconnu : {id}"))
 }
 
-fn validate_project(meta: &ProjectMeta) -> Result<(), String> {
+pub fn validate_project(meta: &ProjectMeta) -> Result<(), String> {
     if meta.name.trim().is_empty() {
         return Err("Le projet n'a pas de nom".into());
     }
@@ -230,21 +277,17 @@ fn validate_project(meta: &ProjectMeta) -> Result<(), String> {
     Ok(())
 }
 
-/// Creates the project when `id` is new (from its name), updates it otherwise.
-pub fn save_project(id: Option<String>, meta: ProjectMeta, vision: String) -> Result<Project, String> {
+/// Writes a tracked game's settings: the path to this machine's registry, the rest to its synced `project.md`.
+/// New games come in through `sync::attach`, which sets up their data branch first.
+pub fn save_project(id: &str, mut meta: ProjectMeta, vision: String) -> Result<Project, String> {
     validate_project(&meta)?;
     let _guard = lock();
-    let id = match id {
-        Some(id) => id,
-        None => {
-            let id = slugify(&meta.name, 32);
-            if id.is_empty() || project_dir(&id).exists() {
-                return Err(format!("Un projet {id} existe déjà"));
-            }
-            id
-        }
-    };
-    let dir = project_dir(&id);
+    let dir = project_dir(id);
+    if !dir.exists() {
+        return Err(format!("Projet inconnu : {id}"));
+    }
+    register(id, &meta.path)?;
+    meta.path = String::new();
     write_doc(&dir.join("project.md"), &meta, &vision)?;
     read_project(&dir)
 }
@@ -311,7 +354,7 @@ impl ProjectPatch {
 pub fn update_project(id: &str, patch: ProjectPatch) -> Result<Project, String> {
     let current = project(id)?;
     let (meta, vision) = patch.apply(current.meta, current.vision);
-    save_project(Some(id.to_string()), meta, vision)
+    save_project(id, meta, vision)
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -419,11 +462,9 @@ pub fn items(project: &str) -> Vec<Item> {
 /// The project holding an item, found by its file rather than its prefix: a project's key may have changed since.
 fn locate(id: &str) -> Result<(String, PathBuf), String> {
     let file = format!("{id}.md");
-    std::fs::read_dir(paths::data_dir())
+    data_dirs()
         .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .map(|e| (stem(&e.path()), e.path().join("items").join(&file)))
+        .map(|(project, dir)| (project, dir.join("items").join(&file)))
         .find(|(_, path)| path.is_file())
         .ok_or_else(|| format!("Élément inconnu : {id}"))
 }

@@ -145,12 +145,13 @@ export interface Asset {
 }
 
 export interface SyncStatus {
-  initialized: boolean;
-  remote: string | null;
   syncing: boolean;
   lastSync: string | null;
+  /** One line per game in error, prefixed by its name. */
   error: string | null;
   pending: number;
+  /** Where each game's data is pushed (its repo's `gamestudio` branch), by project id. */
+  remotes: Record<string, string>;
   /** What the last sync merged that is worth knowing. */
   notice: string | null;
 }

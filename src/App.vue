@@ -62,7 +62,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
 <template>
   <div v-if="!store.booted" class="boot" data-tauri-drag-region />
-  <OnboardingView v-else-if="!store.sync?.initialized || !store.projects.length" />
+  <OnboardingView v-else-if="!store.projects.length" />
   <div v-else class="shell">
     <Sidebar />
     <main class="main">
