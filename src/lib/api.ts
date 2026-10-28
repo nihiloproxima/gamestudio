@@ -22,13 +22,11 @@ export const inTauri = "__TAURI_INTERNALS__" in window;
 const tauriApi = {
   syncStatus: () => invoke<SyncStatus>("sync_status"),
   syncNow: () => invoke<SyncStatus>("sync_now"),
-  dataInit: (cloneUrl?: string) => invoke<SyncStatus>("data_init", { cloneUrl }),
-  syncCreateRemote: (name: string) => invoke<SyncStatus>("sync_create_remote", { name }),
-  syncLinkRemote: (url: string) => invoke<SyncStatus>("sync_link_remote", { url }),
 
   projects: () => invoke<Project[]>("projects_list"),
-  projectSave: (id: string | null, meta: ProjectMeta, vision: string) =>
-    invoke<Project>("project_save", { id, meta, vision }),
+  projectSave: (id: string, meta: ProjectMeta, vision: string) => invoke<Project>("project_save", { id, meta, vision }),
+  /** Adds a game from its repo; its data comes back if the repo already has a `gamestudio` branch. */
+  projectAttach: (meta: ProjectMeta) => invoke<Project>("project_attach", { meta }),
 
   milestones: (project: string) => invoke<Milestone[]>("milestones_list", { project }),
   milestoneSave: (project: string, id: string | null, meta: MilestoneMeta, goal: string) =>

@@ -88,7 +88,6 @@ export function fail(e: unknown, context?: string) {
 export async function boot() {
   try {
     store.sync = await api.syncStatus();
-    if (!store.sync.initialized) return;
     store.projects = await api.projects();
     const saved = localStorage.getItem("project");
     store.projectId = store.projects.find((p) => p.id === saved)?.id ?? store.projects[0]?.id ?? "";
@@ -225,14 +224,25 @@ export async function deleteItem(id: string) {
   }
 }
 
-/** Creates the project when `id` is null. */
-export async function saveProject(id: string | null, meta: ProjectMeta, vision: string) {
+export async function saveProject(id: string, meta: ProjectMeta, vision: string) {
   try {
     const saved = await api.projectSave(id, meta, vision);
     store.projects = await api.projects();
     return saved;
   } catch (e) {
     fail(e);
+  }
+}
+
+/** Adds a game from its repo, then shows it. */
+export async function attachProject(meta: ProjectMeta) {
+  try {
+    const added = await api.projectAttach(meta);
+    store.projects = await api.projects();
+    await switchProject(added.id);
+    return added;
+  } catch (e) {
+    fail(e, "Ajout du jeu");
   }
 }
 

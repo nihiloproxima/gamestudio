@@ -3,6 +3,7 @@ name = "gamestudio"
 version = "0.1.0"
 description = "Gamestudio, a workbench for game developers and the coding agents that build their games"
 authors = ["Nathan Plouvier"]
+license = "MIT"
 edition = "2024"
 
 [lib]

@@ -41,11 +41,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::sync_status,
             commands::sync_now,
-            commands::data_init,
-            commands::sync_create_remote,
-            commands::sync_link_remote,
             commands::projects_list,
             commands::project_save,
+            commands::project_attach,
             commands::milestones_list,
             commands::milestone_save,
             commands::milestone_delete,

@@ -41,8 +41,9 @@ pub enum Request {
     Project { ctx: Context },
     /// `patch` holds `ProjectPatch` fields.
     ProjectSet { ctx: Context, patch: Value },
-    /// A new game; `patch` must give at least its name, key and path.
-    ProjectAdd { patch: Value },
+    /// Adds the game whose repo is `patch.path` (default: the repo holding `ctx.cwd`). Its data comes back when the
+    /// repo already has a data branch; otherwise `patch` must give at least a name and a key.
+    ProjectAdd { ctx: Context, patch: Value },
     Milestones { ctx: Context },
     /// Creates the milestone without `id`, otherwise changes the given fields (title, status, target, goal, order).
     MilestoneSave { ctx: Context, id: Option<String>, fields: Value },
@@ -174,12 +175,23 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
             data_changed(app);
             Ok(json!(updated))
         }
-        Request::ProjectAdd { patch } => {
+        Request::ProjectAdd { ctx, patch } => {
             let patch: store::ProjectPatch = parse(patch, "projet")?;
             let blank = store::ProjectMeta { color: "#89b4fa".into(), ..Default::default() };
             let (mut meta, vision) = patch.apply(blank, String::new());
+            if meta.path.trim().is_empty() {
+                let cwd = ctx.cwd.as_deref().ok_or("Précise le dépôt avec --path")?;
+                let top = paths::run(paths::git(Path::new(cwd)).args(["rev-parse", "--show-toplevel"]))
+                    .map_err(|_| "Ce dossier n'est pas dans un dépôt git : précise-le avec --path")?;
+                meta.path = top.trim().to_string();
+            }
             crate::worktrees::fill_from_repo(&mut meta);
-            let project = store::save_project(None, meta, vision)?;
+            let id = sync::attach(meta)?;
+            let project = if vision.trim().is_empty() {
+                store::project(&id)?
+            } else {
+                store::update_project(&id, store::ProjectPatch { vision: Some(vision), ..Default::default() })?
+            };
             data_changed(app);
             Ok(json!(project))
         }

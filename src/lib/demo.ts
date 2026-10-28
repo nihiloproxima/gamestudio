@@ -157,7 +157,14 @@ const assets: Asset[] = [
   { path: "", rel: "assets/sprites/player.aseprite", kind: "source", size: 54_000, modified: Date.now() - 86_400_000 * 2 },
 ];
 
-let sync: SyncStatus = { initialized: true, remote: "git@github.com:ada/gamestudio-data.git", syncing: false, lastSync: ago(2), error: null, pending: 0, notice: null };
+let sync: SyncStatus = {
+  syncing: false,
+  lastSync: ago(2),
+  error: null,
+  pending: 0,
+  notice: null,
+  remotes: Object.fromEntries(projects.map((p) => [p.id, `git@github.com:${p.github}.git`])),
+};
 
 const wait = <T>(value: T, ms = 120) => new Promise<T>((resolve) => setTimeout(() => resolve(structuredClone(value)), ms));
 const fail = (text: string) => Promise.reject(text);
@@ -171,16 +178,18 @@ function findItem(id: string) {
 export const demoApi: Api = {
   syncStatus: () => wait(sync),
   syncNow: () => wait((sync = { ...sync, lastSync: new Date().toISOString() }), 600),
-  dataInit: () => wait(sync),
-  syncCreateRemote: (name) => wait((sync = { ...sync, remote: `git@github.com:ada/${name}.git` }), 800),
-  syncLinkRemote: (url) => wait((sync = { ...sync, remote: url })),
 
   projects: () => wait(projects),
   projectSave(id, meta, vision) {
     const existing = projects.find((p) => p.id === id);
-    if (existing) Object.assign(existing, meta, { vision });
-    else projects.push({ ...meta, vision, id: meta.name.toLowerCase(), present: false });
-    return wait(existing ?? projects[projects.length - 1]);
+    if (!existing) return fail(`Projet inconnu : ${id}`);
+    Object.assign(existing, meta, { vision });
+    return wait(existing);
+  },
+  projectAttach(meta) {
+    const project: Project = { ...meta, base: meta.base || "origin/main", vision: "", id: meta.name.toLowerCase(), present: true };
+    projects.push(project);
+    return wait(project, 500);
   },
 
   milestones: (project) => wait(milestones[project] ?? []),

@@ -62,7 +62,7 @@ const syncLabel = computed(() => {
   if (!s) return "";
   if (s.syncing) return "Synchronisation…";
   if (s.error) return "Synchro en erreur";
-  if (!s.remote) return "Pas encore sur GitHub";
+  if (!s.remotes[store.projectId]) return "Pas de dépôt distant";
   return s.lastSync ? `Synchronisé ${since(s.lastSync)}` : "Synchronisé";
 });
 
@@ -143,10 +143,10 @@ function goTo(id: RouteName) {
     </section>
 
     <footer class="foot">
-      <button class="sync" :class="{ error: store.sync?.error }" :title="store.sync?.error ?? store.sync?.remote ?? ''" @click="syncNow">
+      <button class="sync" :class="{ error: store.sync?.error }" :title="store.sync?.error ?? store.sync?.remotes[store.projectId] ?? ''" @click="syncNow">
         <RefreshCw v-if="store.sync?.syncing" :size="13" class="spin" />
         <TriangleAlert v-else-if="store.sync?.error" :size="13" />
-        <CloudOff v-else-if="!store.sync?.remote" :size="13" />
+        <CloudOff v-else-if="!store.sync?.remotes[store.projectId]" :size="13" />
         <Cloud v-else :size="13" />
         <span>{{ syncLabel }}</span>
       </button>

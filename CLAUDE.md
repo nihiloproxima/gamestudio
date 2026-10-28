@@ -22,14 +22,18 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
 - **Tauri 2 + Vue 3/TS**, no UI framework: tokens in `src/styles/base.css` + scoped CSS. `src/domain/types.ts` is the
   contract with the Rust core (`src-tauri/src`); `src/state/store.ts` holds state and actions; `commands.rs` is the IPC
   surface (blocking work off the main thread).
-- **Data = files in a git repo**, `~/.gamestudio/data/<project>/`: `project.md`, `milestones/<slug>.md`,
-  `items/<KEY>-<n>.md`, Markdown with a TOML front matter (`store.rs`). Re-read on every request (no cache), every
-  read/write under `store::lock()`, atomic writes. One file per item keeps merges between machines line-level.
-- **Sync** (`sync.rs`): one worker thread commits, fetches, rebases onto `origin/main` (`-X theirs`: this machine's
-  line wins where both edited the same line; a notice names the files), pushes. A few seconds after a write and every
-  3 minutes. A rebase that still fails is aborted and reported; nothing is overwritten. Remote = a private GitHub repo
-  created from Settings (`gh repo create`), or cloned on a second Mac from the onboarding screen. A new project's
-  GitHub repo and base branch are read from its repo when left blank (`worktrees::fill_from_repo`).
+- **Data = files on a `gamestudio` branch of each game's own repo** (orphan: no history shared with the code), checked
+  out as a small separate clone in `~/.gamestudio/data/<project>/`, never in the game's working tree: `project.md`,
+  `milestones/<slug>.md`, `items/<KEY>-<n>.md`, Markdown with a TOML front matter (`store.rs`). Re-read on every
+  request (no cache), every read/write under `store::lock()`, atomic writes. One file per item keeps merges between
+  machines line-level. The repo's path on this machine is in `~/.gamestudio/repos.json`, never synced.
+- **Sync** (`sync.rs`): one worker thread, for each game, commits, fetches only the data branch, rebases onto
+  `origin/gamestudio` (`-X theirs`: this machine's line wins where both edited the same line; a notice names the
+  files), pushes. A few seconds after a write and every 3 minutes. A rebase that still fails is aborted and reported;
+  nothing is overwritten. The data clone's `origin` is the game's `origin` (or the game repo itself when it has
+  none). **Adding a game** (`sync::attach`: onboarding, Settings, `studio project add`) clones the data branch when
+  the repo has one (another machine), else starts it; an unreachable remote is an error, never a second history. A
+  new project's GitHub repo and base branch are read from its repo when left blank (`worktrees::fill_from_repo`).
 - **Machine-local** (`~/.gamestudio/`, not synced): `sessions.json`, `studio.sock`, `worktrees/<project>/<branch>`,
   `tmux.conf`, `claude-hooks.json`, `briefs/`, `bin/studio` (link to the running binary).
 - **Sessions** (`sessions.rs`): tmux on a private server (`tmux -L studio`), shown through xterm.js, so agents outlive
