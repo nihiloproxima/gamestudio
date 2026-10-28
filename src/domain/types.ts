@@ -156,6 +156,15 @@ export interface SyncStatus {
   notice: string | null;
 }
 
+export interface UpdateStatus {
+  current: string;
+  /** `disabled` when not running from an installed app (dev build); `ready` once installed, until a restart. */
+  state: "disabled" | "idle" | "checking" | "installing" | "ready" | "error";
+  latest: string | null;
+  error: string | null;
+  checkedAt: string | null;
+}
+
 export const STATUSES: { id: ItemStatus; label: string }[] = [
   { id: "inbox", label: "À trier" },
   { id: "backlog", label: "Backlog" },

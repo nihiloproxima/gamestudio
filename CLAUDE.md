@@ -15,7 +15,10 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
 - `pnpm tauri dev`: run the app (Vite on :1430 + Rust core)
 - `pnpm dev`: UI only, in a browser, on demo data (`src/lib/demo.ts`); the UI must keep working without Tauri
 - `pnpm exec vue-tsc --noEmit`: typecheck; `cargo test` in `src-tauri/` (`source ~/.cargo/env` if needed)
-- `pnpm app:install`: release build to /Applications, `studio` CLI in ~/.local/bin, skill linked in ~/.claude/skills
+- `pnpm app:install`: local release build to /Applications, `studio` CLI in ~/.local/bin, skill in ~/.claude/skills
+  (`scripts/install.sh` without `--source` installs the latest GitHub release instead)
+- `pnpm release X.Y.Z` (from main): bumps package.json, tauri.conf.json, Cargo.toml, tags `vX.Y.Z` and pushes; the
+  Release workflow (`.github/workflows/release.yml`) builds the app and publishes `Gamestudio_X.Y.Z_aarch64.app.tar.gz`
 
 ## Architecture (decided)
 
@@ -49,6 +52,12 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   (`src/lib/links.ts`). Default branch names start with the lowercase id.
 - **Worktrees** (`worktrees.rs`): read from `git worktree list`; created under `~/.gamestudio/worktrees`; removal
   refused while dirty or with a live session (branch kept).
+- **Updates** (`update.rs`): an installed app (running from a `.app`) asks `gh release view` on the repo in
+  Cargo.toml's `repository` 20 s after start and every 6 h; a newer `vX.Y.Z` is downloaded with `gh` (works on a
+  private repo, no token stored), its Info.plist version checked, and swapped in place of the running bundle (copy
+  beside it, two renames, rollback on failure), then a notification asks for a restart (`app_restart`). The bundle is
+  ad-hoc signed as a whole (`bundle.macOS.signingIdentity: "-"`). The `studio` link and the Claude skill point inside
+  the bundle (the skill is a bundle resource), so updates carry them along.
 - **GitHub**: `gh pr list` per project (`github.rs`), polled every 2 min. **Assets**: scan of the project's declared
   folders (`assets.rs`), shown through Tauri's asset protocol.
 
@@ -71,6 +80,8 @@ game's vision and objectives ("Le cap").
 
 ## Next
 
-1. macOS notifications when an agent starts waiting; reboot restore (resume every offline Claude session at once).
+1. Notifications when an agent starts waiting (the notification plugin is in, used by updates); reboot restore
+   (resume every offline Claude session at once).
 2. PR actions (ready for review, merge after checks) and CI logs; asset generation jobs with their outputs linked.
-3. Before a public release: an English UI (copy is French only), a license, a signed build.
+3. Before a public release: an English UI (copy is French only); Developer ID signing and notarization if
+   downloads from a browser must open without a Gatekeeper warning; an Intel or universal build.

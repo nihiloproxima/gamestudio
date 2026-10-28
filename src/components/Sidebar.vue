@@ -13,6 +13,7 @@ import {
   Map,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Settings,
   TriangleAlert,
@@ -27,6 +28,7 @@ import {
   now,
   project,
   projectSessions,
+  restartApp,
   sessionsByUrgency,
   store,
   switchProject,
@@ -141,6 +143,14 @@ function goTo(id: RouteName) {
       </button>
       <p v-if="!sessions.length" class="none">Aucun agent ne tourne</p>
     </section>
+
+    <button v-if="store.update?.state === 'ready'" class="update" @click="restartApp">
+      <RotateCcw :size="14" />
+      <span>
+        <strong>Gamestudio {{ store.update.latest?.replace(/^v/, "") }} est prête</strong>
+        <span>Redémarrer pour l'utiliser</span>
+      </span>
+    </button>
 
     <footer class="foot">
       <button class="sync" :class="{ error: store.sync?.error }" :title="store.sync?.error ?? store.sync?.remotes[store.projectId] ?? ''" @click="syncNow">
@@ -377,6 +387,37 @@ function goTo(id: RouteName) {
   font-size: var(--text-xs);
 }
 
+.update {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  text-align: left;
+  transition: background 120ms;
+}
+.update:hover {
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+.update svg {
+  flex: none;
+  color: var(--accent);
+}
+.update > span {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-xs);
+}
+.update strong {
+  color: var(--bright);
+  font-weight: 600;
+}
+.update span span {
+  color: var(--subtext);
+}
 .foot {
   display: flex;
   align-items: center;

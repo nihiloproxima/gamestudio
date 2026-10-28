@@ -3,7 +3,7 @@
 
 use tauri::AppHandle;
 
-use crate::{assets, control, github, paths, sessions, store, sync, worktrees};
+use crate::{assets, control, github, paths, sessions, store, sync, update, worktrees};
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())?
@@ -192,4 +192,22 @@ pub async fn path_open(path: String, reveal: bool) -> Result<(), String> {
 #[tauri::command]
 pub async fn path_vscode(path: String) -> Result<(), String> {
     blocking(move || paths::open_in_vscode(&path)).await
+}
+
+// Updates ---------------------------------------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn update_status() -> update::UpdateStatus {
+    update::status()
+}
+
+#[tauri::command]
+pub async fn update_check(app: AppHandle) -> Result<update::UpdateStatus, String> {
+    blocking(move || Ok(update::check(&app))).await
+}
+
+/// Relaunches the app, on the update just installed. Terminal views reattach; agents never stopped.
+#[tauri::command]
+pub fn app_restart(app: AppHandle) {
+    app.restart();
 }
