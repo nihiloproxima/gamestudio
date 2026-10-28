@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#232336"/>
+      <stop offset="1" stop-color="#11111b"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <rect x="64.5" y="64.5" width="895" height="895" rx="200" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="3"/>
+  <!-- Three facets of one gem: one per game, joined at the center. -->
+  <g transform="translate(512 520)">
+    <path d="M0 -300 L260 -60 L0 0 Z" fill="#ff79c6"/>
+    <path d="M0 -300 L-260 -60 L0 0 Z" fill="#ff9bd6"/>
+    <path d="M-260 -60 L0 0 L0 280 Z" fill="#8bd5ca"/>
+    <path d="M260 -60 L0 0 L0 280 Z" fill="#ef9f76"/>
+    <path d="M0 -300 L260 -60 L0 280 L-260 -60 Z" fill="none" stroke="#11111b" stroke-width="18" stroke-linejoin="round"/>
+    <path d="M-260 -60 L0 0 L260 -60 M0 0 L0 280" fill="none" stroke="#11111b" stroke-width="14" stroke-linejoin="round"/>
+  </g>
+</svg>
