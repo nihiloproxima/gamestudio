@@ -169,6 +169,52 @@ let sync: SyncStatus = {
 
 let update: UpdateStatus = { current: "0.1.0", state: "idle", latest: "v0.1.0", error: null, checkedAt: ago(30) };
 
+// What a demo terminal shows: an agent mid-task, or a shell, in the Mocha colors of the real ones.
+const c = (rgb: string, text: string) => `\x1b[38;2;${rgb}m${text}\x1b[0m`;
+const dim = (text: string) => c("127;132;156", text);
+const dot = (text: string) => `${c("166;227;161", "●")} ${text}`;
+
+function transcript(s: Session | undefined): string {
+  if (!s || s.agent === "shell") {
+    const prompt = `${c("137;180;250", "~/code/frostholm")} ${c("203;166;247", "main*")} ${c("166;227;161", "❯")} `;
+    return [
+      `${prompt}git status --short`,
+      ` ${c("249;226;175", "M")} features/combat/fire_staff.gd`,
+      ` ${c("249;226;175", "M")} content/abilities/fire_nova.tres`,
+      `${c("243;139;168", "??")} assets/sounds/forge_hammer_2.wav`,
+      prompt,
+    ].join("\r\n");
+  }
+  const lines =
+    s.id === "fro-1-claude"
+      ? [
+          c("205;214;244", "> Tu travailles sur FRO-1 (une tâche de Frostholm) : Armures : slot de torse et de jambes"),
+          "",
+          dot("Je relis la fiche, puis le code de l'inventaire."),
+          `  ${dim("└")} studio item FRO-1`,
+          dot(`Read ${c("137;180;250", "features/inventory/equipment.gd")}`),
+          dot(`Read ${c("137;180;250", "content/items/armor_chest_iron.tres")}`),
+          dot("Les slots existent déjà : il manque le rendu sur le personnage et les réglages."),
+          dot(`Edit ${c("137;180;250", "features/character/character_sprite.gd")}  ${c("166;227;161", "+38")} ${c("243;139;168", "−4")}`),
+          dot(`Edit ${c("137;180;250", "content/armors/iron_chest.tres")}  ${c("166;227;161", "+12")}`),
+          `  ${dim("└")} studio note FRO-1 "Rendu des armures branché sur les calques du sprite"`,
+          "",
+          dot("Je lance les tests sans fenêtre :"),
+          `  ${c("249;226;175", "$")} godot --headless --script tests/run.gd`,
+          "",
+          `  ${c("249;199;79", "Autoriser cette commande ?")}  ${c("205;214;244", "1. Oui")}   ${dim("2. Oui, toujours")}   ${dim("3. Non")}`,
+        ]
+      : [
+          c("205;214;244", `> ${s.item ? `Tu travailles sur ${s.item} : ` : ""}${s.title}`),
+          "",
+          dot("Je regarde comment c'est fait aujourd'hui."),
+          dot(`Read ${c("137;180;250", "features/progression/talent_tree.gd")}`),
+          dot(`Edit ${c("137;180;250", "ui/hud/talent_node.tscn")}  ${c("166;227;161", "+21")} ${c("243;139;168", "−6")}`),
+          `  ${dim("…")}`,
+        ];
+  return lines.join("\r\n");
+}
+
 const wait = <T>(value: T, ms = 120) => new Promise<T>((resolve) => setTimeout(() => resolve(structuredClone(value)), ms));
 const fail = (text: string) => Promise.reject(text);
 
@@ -306,8 +352,8 @@ export const demoApi: Api = {
     return wait(undefined);
   },
 
-  async ptyAttach(session, _cols, _rows, onData) {
-    const text = `\x1b[38;2;137;180;250m${session}\x1b[0m : terminal de démonstration.\r\nLance l'app avec \x1b[1mpnpm tauri dev\x1b[0m pour de vrais terminaux.\r\n`;
+  async ptyAttach(id, _cols, _rows, onData) {
+    const text = transcript(sessions.find((s) => s.id === id));
     setTimeout(() => onData(new TextEncoder().encode(text)), 50);
     return 1;
   },

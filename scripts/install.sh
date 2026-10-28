@@ -3,7 +3,7 @@
 # then puts the `studio` CLI on PATH and the Claude Code skill in ~/.claude/skills. Both point inside the app, so its
 # own updates carry them along. Safe while agents work: they live in Gamestudio's tmux server, not in the app.
 #
-#   gh api repos/nihiloproxima/gamestudio/contents/scripts/install.sh -H "Accept: application/vnd.github.raw" | bash
+#   curl -fsSL https://raw.githubusercontent.com/nihiloproxima/gamestudio/main/scripts/install.sh | bash
 #   pnpm app:install          # from a checkout: builds it locally (Node, pnpm and Rust needed)
 set -euo pipefail
 REPO="${GAMESTUDIO_REPO:-nihiloproxima/gamestudio}"
