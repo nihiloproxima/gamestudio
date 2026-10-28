@@ -94,11 +94,24 @@ export async function boot() {
     const saved = localStorage.getItem("project");
     store.projectId = store.projects.find((p) => p.id === saved)?.id ?? store.projects[0]?.id ?? "";
     await Promise.all([loadProject(), refreshSessions()]);
+    if (!inTauri) openFromUrl();
   } catch (e) {
     fail(e, "Démarrage");
   } finally {
     store.booted = true;
   }
+}
+
+/** Browser mode only: `?view=agents&session=fro-1-claude`, `?item=FRO-1`, `?palette=1`… open the demo on a given
+ *  screen, for screenshots (`scripts/screenshots.sh`) and design work. */
+function openFromUrl() {
+  const q = new URLSearchParams(location.search);
+  const view = q.get("view") as RouteName | null;
+  if (view) store.route = view === "agents" ? { name: "agents", session: q.get("session") ?? undefined } : ({ name: view } as Route);
+  store.drawer = q.get("item");
+  store.palette = q.has("palette");
+  if (q.has("launch")) store.launch = { item: q.get("launch") || undefined };
+  if (q.has("capture")) store.capture = { kind: (q.get("capture") || "task") as ItemKind };
 }
 
 async function loadProject() {

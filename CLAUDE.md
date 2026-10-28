@@ -13,7 +13,10 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
 ## Commands
 
 - `pnpm tauri dev`: run the app (Vite on :1430 + Rust core)
-- `pnpm dev`: UI only, in a browser, on demo data (`src/lib/demo.ts`); the UI must keep working without Tauri
+- `pnpm dev`: UI only, in a browser, on demo data (`src/lib/demo.ts`); the UI must keep working without Tauri.
+  Deep links open a given screen there (`?view=agents&session=fro-1-claude`, `?item=FRO-1`, `?palette=1`;
+  `state/store.ts` `openFromUrl`); `scripts/screenshots.sh` uses them to regenerate the README screenshots
+  (`docs/screenshots/`, headless Chrome at 2x). Keep both READMEs (`README.md` English, `README.fr.md`) in step
 - `pnpm exec vue-tsc --noEmit`: typecheck; `cargo test` in `src-tauri/` (`source ~/.cargo/env` if needed)
 - `pnpm app:install`: local release build to /Applications, `studio` CLI in ~/.local/bin, skill in ~/.claude/skills
   (`scripts/install.sh` without `--source` installs the latest GitHub release instead)
