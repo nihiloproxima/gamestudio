@@ -9,6 +9,7 @@ import type {
   PullRequest,
   Session,
   SyncStatus,
+  UpdateStatus,
   Worktree,
 } from "../domain/types";
 import type { Api } from "./api";
@@ -166,6 +167,8 @@ let sync: SyncStatus = {
   remotes: Object.fromEntries(projects.map((p) => [p.id, `git@github.com:${p.github}.git`])),
 };
 
+let update: UpdateStatus = { current: "0.1.0", state: "idle", latest: "v0.1.0", error: null, checkedAt: ago(30) };
+
 const wait = <T>(value: T, ms = 120) => new Promise<T>((resolve) => setTimeout(() => resolve(structuredClone(value)), ms));
 const fail = (text: string) => Promise.reject(text);
 
@@ -295,6 +298,13 @@ export const demoApi: Api = {
   assetUrl: (path) => path,
   openPath: () => wait(undefined),
   openInVscode: () => wait(undefined),
+
+  updateStatus: () => wait(update),
+  updateCheck: () => wait((update = { ...update, state: "ready", latest: "v0.2.0", checkedAt: new Date().toISOString() }), 900),
+  restart() {
+    update = { ...update, current: "0.2.0", state: "idle" };
+    return wait(undefined);
+  },
 
   async ptyAttach(session, _cols, _rows, onData) {
     const text = `\x1b[38;2;137;180;250m${session}\x1b[0m : terminal de démonstration.\r\nLance l'app avec \x1b[1mpnpm tauri dev\x1b[0m pour de vrais terminaux.\r\n`;

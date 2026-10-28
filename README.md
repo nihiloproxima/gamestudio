@@ -32,9 +32,16 @@ Rust.
 ## Installer
 
 ```sh
-pnpm install
-pnpm app:install      # construit /Applications/Gamestudio.app, la commande `studio` et le skill Claude Code
+gh api repos/nihiloproxima/gamestudio/contents/scripts/install.sh -H "Accept: application/vnd.github.raw" | bash
 ```
+
+Le script installe la dernière release dans `/Applications`, la commande `studio` dans `~/.local/bin` et le skill
+Claude Code dans `~/.claude/skills`. Depuis un clone du dépôt, `pnpm app:install` fait de même à partir des sources.
+L'app est pour les Mac Apple Silicon.
+
+**Mises à jour** : l'app cherche une nouvelle release au démarrage puis toutes les six heures, l'installe à sa place
+et te prévient par une notification ; il reste à la redémarrer (les agents continuent de tourner). Les Réglages
+permettent aussi de vérifier à la demande.
 
 Au premier lancement, indique le dépôt d'un jeu (avec un nom et une clé si c'est un nouveau jeu). Les autres
 s'ajoutent dans les réglages ou avec `studio project add` depuis leur dépôt.
@@ -48,6 +55,9 @@ pnpm exec vue-tsc --noEmit && (cd src-tauri && cargo test)
 ```
 
 L'architecture est décrite dans [CLAUDE.md](CLAUDE.md).
+
+Publier une version : `pnpm release 0.2.0` depuis `main`. Le script met la version à jour, crée le tag `v0.2.0` et le
+pousse ; la CI construit l'app et publie la release, que les apps installées récupèrent d'elles-mêmes.
 
 ## La commande `studio`
 

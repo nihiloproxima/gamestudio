@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { Cloud, CloudOff, Plus, RefreshCw, Sparkles, TriangleAlert } from "lucide-vue-next";
+import { CircleArrowUp, Cloud, CloudOff, Plus, RefreshCw, RotateCcw, Sparkles, TriangleAlert } from "lucide-vue-next";
 import ProjectGlyph from "../components/ProjectGlyph.vue";
 import type { ProjectMeta } from "../domain/types";
-import { attachProject, notify, now, project, saveProject, setupWithClaude, store, syncNow } from "../state/store";
+import { attachProject, checkForUpdate, notify, now, project, restartApp, saveProject, setupWithClaude, store, syncNow } from "../state/store";
 import { since } from "../lib/format";
 
 /** The current game's settings (synced through its data branch, except its path on this Mac), a new game, and
@@ -64,6 +64,21 @@ async function save() {
   const id = project.value?.id;
   if (id && (await saveProject(id, meta, project.value?.vision ?? ""))) notify("Réglages enregistrés");
 }
+
+const updateText = computed(() => {
+  const u = store.update;
+  if (!u) return "";
+  void now.value;
+  const when = u.checkedAt ? `, vérifié ${since(u.checkedAt)}` : "";
+  return {
+    disabled: "Les mises à jour automatiques ne concernent que l'app installée (pas pnpm tauri dev).",
+    idle: `À jour${when}.`,
+    checking: "Recherche d'une nouvelle version…",
+    installing: `Installation de ${u.latest}…`,
+    ready: `${u.latest} est installée : redémarre pour l'utiliser.`,
+    error: u.error ?? "La dernière vérification a échoué.",
+  }[u.state];
+});
 
 const remote = computed(() => (project.value ? store.sync?.remotes[project.value.id] : undefined));
 </script>
@@ -168,6 +183,31 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
           </p>
           <p v-if="store.sync?.error" class="warn selectable"><TriangleAlert :size="14" />{{ store.sync.error }}</p>
           <button class="btn btn-quiet" :disabled="store.sync?.syncing" @click="syncNow"><RefreshCw />Synchroniser maintenant</button>
+        </section>
+
+        <section v-if="!creating && store.update" class="card">
+          <header class="card-head">
+            <CircleArrowUp :size="22" class="muted" />
+            <div>
+              <h2>Gamestudio {{ store.update.current }}</h2>
+              <p class="muted">
+                L'app cherche une nouvelle version au démarrage puis toutes les six heures, l'installe et te prévient.
+                Tes agents continuent de tourner pendant le redémarrage.
+              </p>
+            </div>
+          </header>
+          <p class="state" :class="{ warn: store.update.state === 'error' }">{{ updateText }}</p>
+          <div class="row-actions">
+            <button v-if="store.update.state === 'ready'" class="btn btn-solid" @click="restartApp"><RotateCcw />Redémarrer</button>
+            <button
+              v-else
+              class="btn btn-quiet"
+              :disabled="store.update.state === 'disabled' || store.update.state === 'checking' || store.update.state === 'installing'"
+              @click="checkForUpdate"
+            >
+              <RefreshCw />Rechercher une mise à jour
+            </button>
+          </div>
         </section>
 
         <section v-if="!creating" class="card claude">
@@ -292,6 +332,10 @@ studio help                        tout le reste</pre>
 .small {
   margin: 4px 0 8px;
   font-size: var(--text-xs);
+}
+.row-actions {
+  display: flex;
+  gap: 8px;
 }
 .claude {
   background:

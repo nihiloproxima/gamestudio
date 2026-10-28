@@ -16,6 +16,7 @@ import {
   type Session,
   type StartRequest,
   type SyncStatus,
+  type UpdateStatus,
   type Worktree,
 } from "../domain/types";
 import { api, errorText, inTauri } from "../lib/api";
@@ -33,6 +34,7 @@ export interface Toast {
 export const store = reactive({
   booted: false,
   sync: null as SyncStatus | null,
+  update: null as UpdateStatus | null,
   projects: [] as Project[],
   projectId: "",
   route: { name: "overview" } as Route,
@@ -87,7 +89,7 @@ export function fail(e: unknown, context?: string) {
 
 export async function boot() {
   try {
-    store.sync = await api.syncStatus();
+    [store.sync, store.update] = await Promise.all([api.syncStatus(), api.updateStatus()]);
     store.projects = await api.projects();
     const saved = localStorage.getItem("project");
     store.projectId = store.projects.find((p) => p.id === saved)?.id ?? store.projects[0]?.id ?? "";
@@ -349,6 +351,23 @@ export async function stopSession(id: string) {
   }
 }
 
+// Updates -------------------------------------------------------------------------------------------------------
+
+export async function checkForUpdate() {
+  try {
+    store.update = await api.updateCheck();
+    if (store.update.state === "idle") notify(`Gamestudio ${store.update.current} est à jour`);
+    if (store.update.state === "error") fail(store.update.error, "Mise à jour");
+  } catch (e) {
+    fail(e, "Mise à jour");
+  }
+}
+
+/** Back on the version just installed; agents keep running in tmux. */
+export function restartApp() {
+  api.restart().catch((e) => fail(e, "Redémarrage"));
+}
+
 // Sync ----------------------------------------------------------------------------------------------------------
 
 export async function syncNow() {
@@ -391,6 +410,11 @@ if (inTauri) {
     const notice = e.payload.notice;
     if (notice && notice !== store.sync?.notice) notify(notice);
     store.sync = e.payload;
+  });
+  listen<UpdateStatus>("update-changed", (e) => {
+    const ready = e.payload.state === "ready" && store.update?.state !== "ready";
+    store.update = e.payload;
+    if (ready) notify(`Gamestudio ${e.payload.latest?.replace(/^v/, "")} est installée`, { action: { label: "Redémarrer", run: restartApp } });
   });
   listen<{ project: string; id: string }>("open-item", async (e) => {
     await switchProject(e.payload.project);

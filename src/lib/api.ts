@@ -12,6 +12,7 @@ import type {
   Session,
   StartRequest,
   SyncStatus,
+  UpdateStatus,
   Worktree,
 } from "../domain/types";
 import { demoApi } from "./demo";
@@ -52,6 +53,10 @@ const tauriApi = {
   assetUrl: (path: string) => convertFileSrc(path),
   openPath: (path: string, reveal = false) => invoke<void>("path_open", { path, reveal }),
   openInVscode: (path: string) => invoke<void>("path_vscode", { path }),
+
+  updateStatus: () => invoke<UpdateStatus>("update_status"),
+  updateCheck: () => invoke<UpdateStatus>("update_check"),
+  restart: () => invoke<void>("app_restart"),
 
   ptyAttach(session: string, cols: number, rows: number, onData: (bytes: Uint8Array) => void) {
     const channel = new Channel<ArrayBuffer>();

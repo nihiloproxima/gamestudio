@@ -10,6 +10,7 @@ mod sessions;
 mod store;
 mod sync;
 mod tmux;
+mod update;
 mod worktrees;
 
 pub fn cli(args: Vec<String>) -> i32 {
@@ -32,10 +33,12 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(pty::Ptys::default())
         .setup(|app| {
             control::serve(app.handle().clone());
             sync::start(app.handle().clone());
+            update::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -62,6 +65,9 @@ pub fn run() {
             commands::assets_list,
             commands::path_open,
             commands::path_vscode,
+            commands::update_status,
+            commands::update_check,
+            commands::app_restart,
             pty::pty_attach,
             pty::pty_write,
             pty::pty_resize,

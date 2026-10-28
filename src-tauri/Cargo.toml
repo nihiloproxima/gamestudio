@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Gamestudio, a workbench for game developers and the coding agents that build their games"
 authors = ["Nathan Plouvier"]
 license = "MIT"
+# Releases, and so self-updates, come from this repo: a fork changes it to update from its own.
+repository = "https://github.com/nihiloproxima/gamestudio"
 edition = "2024"
 
 [lib]
@@ -17,6 +19,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
+tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1"

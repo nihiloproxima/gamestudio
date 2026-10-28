@@ -1,0 +1,46 @@
+# A tag vX.Y.Z builds the macOS app and publishes it as a GitHub release; installed apps pick it up on their own
+# (src-tauri/src/update.rs). Cut one with `pnpm release X.Y.Z`.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Tag and app version agree
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME, mais l'app est en $version"; exit 1; }
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri build --bundles app
+
+      - name: Package
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          archive="Gamestudio_${version}_aarch64.app.tar.gz"
+          tar -czf "$archive" -C src-tauri/target/release/bundle/macos Gamestudio.app
+          shasum -a 256 "$archive" > SHA256SUMS
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" Gamestudio_*.app.tar.gz SHA256SUMS --title "Gamestudio $GITHUB_REF_NAME" --generate-notes
