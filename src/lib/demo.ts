@@ -90,7 +90,7 @@ const item = (project: string, n: number, title: string, kind: Item["kind"], sta
 
 const items: Item[] = [
   item("frostholm", 1, "Armures : slot de torse et de jambes", "task", "doing", { priority: "high", milestone: "jalon-3-progression", labels: ["progression"], body: "Les armures donnent de la défense et un malus de vitesse.\n\n- [x] Slots dans l'inventaire\n- [ ] Rendu sur le personnage\n- [ ] Réglages dans `content/armors/`" }),
-  item("frostholm", 2, "Bâton de feu : la Nova repousse trop loin", "bug", "todo", { priority: "urgent", milestone: "jalon-3-progression", labels: ["combat"] }),
+  item("frostholm", 2, "Bâton de feu : la Nova repousse trop loin", "bug", "doing", { priority: "urgent", milestone: "jalon-3-progression", labels: ["combat"] }),
   item("frostholm", 3, "Arbre du bâton de glace", "task", "todo", { milestone: "jalon-3-progression" }),
   item("frostholm", 4, "Talents : afficher le coût en points", "task", "review", { milestone: "jalon-3-progression", priority: "high" }),
   item("frostholm", 5, "Refonte des gestes de combat", "idea", "backlog", { body: "Poses, rythme, contact. Après les systèmes." }),
@@ -109,11 +109,13 @@ const items: Item[] = [
 ];
 
 const sessions: Session[] = [
-  { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless" },
-  { id: "fro-4-codex", project: "frostholm", item: "FRO-4", title: "Talents : afficher le coût en points", agent: "codex", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(240), claudeSession: null, status: "working", statusAt: ago(1), message: null },
-  { id: "frostholm-shell", project: "frostholm", item: null, title: "Terminal", agent: "shell", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(30), claudeSession: null, status: "idle", statusAt: ago(30), message: null },
-  { id: "sfx-forge", project: "frostholm", item: null, title: "Sons de la forge (ElevenLabs)", agent: "claude", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(20), claudeSession: null, status: "working", statusAt: ago(2), message: null },
-  { id: "emb-1-claude", project: "ember", item: "EMB-1", title: "Le récit du troisième talisman", agent: "claude", cwd: "/Users/ada/code/ember", branch: null, created: ago(50), claudeSession: null, status: "waiting", statusAt: ago(12), message: "J'ai fini le premier jet du récit, tu veux le relire ?" },
+  { id: "orchestration-0930", project: "frostholm", item: null, title: "Orchestration", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator" },
+  { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless", parent: "orchestration-0930", role: "worker" },
+  { id: "fro-2-claude", project: "frostholm", item: "FRO-2", title: "Bâton de feu : la Nova repousse trop loin", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", created: ago(40), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: "orchestration-0930", role: "worker" },
+  { id: "fro-4-codex", project: "frostholm", item: "FRO-4", title: "Talents : afficher le coût en points", agent: "codex", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(240), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: null, role: null },
+  { id: "frostholm-shell", project: "frostholm", item: null, title: "Terminal", agent: "shell", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(30), claudeSession: null, status: "idle", statusAt: ago(30), message: null, parent: null, role: null },
+  { id: "sfx-forge", project: "frostholm", item: null, title: "Sons de la forge (ElevenLabs)", agent: "claude", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(20), claudeSession: null, status: "working", statusAt: ago(2), message: null, parent: null, role: null },
+  { id: "emb-1-claude", project: "ember", item: "EMB-1", title: "Le récit du troisième talisman", agent: "claude", cwd: "/Users/ada/code/ember", branch: null, created: ago(50), claudeSession: null, status: "waiting", statusAt: ago(12), message: "J'ai fini le premier jet du récit, tu veux le relire ?", parent: null, role: null },
 ];
 
 const worktrees: Record<string, Worktree[]> = {
@@ -121,6 +123,8 @@ const worktrees: Record<string, Worktree[]> = {
     { path: "/Users/ada/code/frostholm", branch: "main", head: "437344a", main: true, locked: false, dirty: 3, ahead: 0, behind: 0, lastCommit: "Plan : refonte du combat après les systèmes", lastCommitAt: ago(80) },
     { path: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", head: "9f1c2e0", main: false, locked: false, dirty: 7, ahead: 4, behind: 1, lastCommit: "3.9 Armures : slots de torse et jambes", lastCommitAt: ago(15) },
     { path: "/Users/ada/.gamestudio/worktrees/frostholm/fro-4-talents-cout", branch: "fro-4-talents-cout", head: "a02b77d", main: false, locked: false, dirty: 0, ahead: 2, behind: 0, lastCommit: "Talents : le coût en points sous chaque nœud", lastCommitAt: ago(200) },
+    { path: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", head: "437344a", main: false, locked: false, dirty: 0, ahead: 0, behind: 0, lastCommit: "Plan : refonte du combat après les systèmes", lastCommitAt: ago(80) },
+    { path: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", head: "5be0f12", main: false, locked: false, dirty: 2, ahead: 1, behind: 0, lastCommit: "Nova : recul proportionnel à la charge", lastCommitAt: ago(6) },
   ],
 };
 
@@ -186,7 +190,24 @@ function transcript(s: Session | undefined): string {
     ].join("\r\n");
   }
   const lines =
-    s.id === "fro-1-claude"
+    s.role === "orchestrator"
+      ? [
+          c("205;214;244", "> Tu orchestres le travail sur Frostholm en autonomie. Lance d'abord `studio guide orchestrate`…"),
+          "",
+          dot("Plan, d'après le jalon 3 et le code :"),
+          `  ${dim("Vague 1")}  FRO-1 Armures ${dim("(inventaire, sprite du personnage)")}`,
+          `           FRO-2 Nova ${dim("(combat, bâton de feu)")}`,
+          `  ${dim("Vague 2")}  FRO-3 Arbre du bâton de glace ${dim("(après FRO-4, même arbre de talents)")}`,
+          `  ${dim("Écarté")}   FRO-8 ${dim("le crash est encore à trier")}`,
+          dot(`studio start FRO-1 --branch fro-1-armures --prompt "…"`),
+          dot(`studio start FRO-2 --branch fro-2-nova-recul --prompt "…"`),
+          dot("studio wait"),
+          `  ${dim("└")} fro-1-claude  waiting  ${dim("« Claude a besoin de ta permission pour lancer godot --headless »")}`,
+          dot("FRO-1 attend ta permission : c'est à toi d'y répondre. J'attends FRO-2."),
+          dot("studio wait"),
+          `  ${dim("…")}`,
+        ]
+      : s.id === "fro-1-claude"
       ? [
           c("205;214;244", "> Tu travailles sur FRO-1 (une tâche de Frostholm) : Armures : slot de torse et de jambes"),
           "",
@@ -308,6 +329,8 @@ export const demoApi: Api = {
       status: req.agent === "shell" ? "idle" : "working",
       statusAt: new Date().toISOString(),
       message: null,
+      parent: null,
+      role: null,
     };
     sessions.push(s);
     if (it && ["inbox", "backlog", "todo"].includes(it.status)) it.status = "doing";
@@ -318,6 +341,14 @@ export const demoApi: Api = {
       const live = sessions.find((x) => x.id === s.id)!;
       live.title = "Configuration de Gamestudio";
       return { ...s, title: live.title };
+    });
+  },
+  sessionOrchestrate(project) {
+    if (sessions.some((s) => s.project === project && s.role === "orchestrator")) return fail("Un orchestrateur tourne déjà");
+    return demoApi.sessionStart({ project, agent: "claude", place: "worktree", branch: "orchestration-demo" }).then((s) => {
+      const live = sessions.find((x) => x.id === s.id)!;
+      Object.assign(live, { title: "Orchestration", role: "orchestrator" });
+      return { ...live };
     });
   },
   sessionResume(id) {

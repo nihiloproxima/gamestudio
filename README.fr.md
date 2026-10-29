@@ -22,6 +22,9 @@ jeu : un jeu à la fois, dans une seule fenêtre.
   worktree neuf. Chaque worktree montre sa branche, ses changements non commités et sa pull request ; chaque agent
   montre s'il travaille, t'attend ou se repose. Les terminaux vivent dans tmux : les agents continuent quand l'app
   se ferme.
+- **Orchestration.** Claude Opus prend dans la roadmap ce qui peut avancer en parallèle, le confie à des agents
+  chacun dans son worktree, relit et fusionne leur travail sur une branche d'intégration, et ouvre une seule pull
+  request.
 - **Assets.** Les images et les sons du jeu, les plus récents en tête : ce qu'un agent vient de générer apparaît.
 - **GitHub.** Les pull requests du dépôt, leur CI et leurs revues, reliées aux tâches qu'elles traitent.
 - **Le suivi voyage avec le jeu.** Il vit sur une branche `gamestudio` du dépôt du jeu, un fichier Markdown par
@@ -96,6 +99,7 @@ studio note FRO-12 "slot de torse fait, reste les jambes"
 studio status FRO-12 review
 studio idea "un corbeau qui vole les graines"
 studio import plan.json --dry-run   # tout un plan (jalons, éléments, réglages), en aperçu
+studio wait                         # pour un agent : jusqu'à ce qu'un des agents qu'il a lancés finisse ou demande
 studio help                         # tout le reste
 ```
 
@@ -104,6 +108,23 @@ studio help                         # tout le reste
 « Configurer avec Claude » lance une session Claude dans le dépôt du jeu, qui suit `studio guide setup`. Claude lit
 le dépôt (plans, documents de design, historique git, pull requests, TODO, dossiers d'assets), te pose les questions
 qui changent le plan, montre un aperçu avec `studio import --dry-run`, et n'écrit rien avant ton accord.
+
+### Laisser Claude orchestrer des agents
+
+« Orchestrer » (<kbd>O</kbd>, ou dans la vue des agents) lance Claude Opus en effort `xhigh` dans un worktree à lui,
+sur une nouvelle branche `orchestration-…`, qui suit `studio guide orchestrate`. Il lit la roadmap et le code,
+prévoit des vagues de tâches et de bugs prévus qui touchent des parties distinctes du jeu, et lance un agent Claude
+sur chacun avec `studio start`, chacun dans un worktree parti de sa branche d'intégration. Il les attend avec
+`studio wait`, lit leur écran avec `studio peek`, leur répond avec `studio send`, relit et fusionne chaque branche
+dès qu'elle est prête, résout les conflits, lance les vérifications du projet après chaque fusion, puis publie sa
+branche et ouvre une pull request dont le titre cite chaque tâche. Il ne pousse jamais sur la branche de base.
+
+Tout tourne sans surveillance, dans le mode auto de Claude. Les agents de l'orchestrateur reçoivent des règles en
+plus de leur tâche (trancher et le noter, commiter sans pousser, finir par une note et `review`) et ne te dérangent
+pas : celui qui finit son tour attend l'orchestrateur, pas toi. Seule une permission que Claude refuse de s'accorder
+fait passer un agent en ambre, et toi seul peux y répondre : un agent ne pilote que ceux qu'il a lancés, et ne répond
+jamais à une permission. Ce qui demande ta décision (une idée, une tâche floue, un choix de design) est laissé de
+côté avec une note. Les tâches fusionnées restent en revue jusqu'à ce que tu les aies essayées.
 
 ### Mises à jour
 
@@ -145,6 +166,7 @@ clone, `pnpm app:install` construit et installe à partir des sources.
 | <kbd>⌥1</kbd>–<kbd>⌥9</kbd> | changer de jeu |
 | <kbd>C</kbd> <kbd>B</kbd> <kbd>I</kbd> | nouvelle tâche, nouveau bug, nouvelle idée |
 | <kbd>A</kbd> | lancer un agent |
+| <kbd>O</kbd> | orchestrer des agents |
 | <kbd>J</kbd> <kbd>K</kbd> <kbd>Entrée</kbd> | parcourir une liste, ouvrir |
 | <kbd>/</kbd> | filtrer |
 

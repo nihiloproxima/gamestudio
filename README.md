@@ -20,6 +20,8 @@ a time, in one window.
 - **Agents.** Start Claude Code, Codex or a plain terminal on a task, in the main checkout or a fresh worktree. Every
   worktree shows its branch, uncommitted changes and pull request; every agent shows whether it works, waits on you
   or rests. Terminals live in tmux, so agents keep running when you quit the app.
+- **Orchestration.** Claude Opus picks from the roadmap what can move in parallel, hands it to agents in their own
+  worktrees, reviews and merges their work on an integration branch, and opens one pull request.
 - **Assets.** The game's images and sounds, newest first, so what a background agent just generated shows up.
 - **GitHub.** The repo's pull requests, their checks and reviews, linked to the tasks they close.
 - **Data that travels with the game.** The tracker lives on a `gamestudio` branch of the game's own repo, one
@@ -91,6 +93,7 @@ studio note FRO-12 "chest slot done, legs next"
 studio status FRO-12 review
 studio idea "a raven that steals seeds"
 studio import plan.json --dry-run   # a whole plan (milestones, items, settings), previewed
+studio wait                         # for an agent: until one of the agents it started is done or asks something
 studio help                         # everything else
 ```
 
@@ -99,6 +102,23 @@ studio help                         # everything else
 "Configurer avec Claude" starts a Claude session in the game's repo that follows `studio guide setup`. Claude reads
 the repo (plans, design docs, git history, pull requests, TODOs, asset folders), asks you the questions that change
 the plan, shows a preview with `studio import --dry-run`, and writes nothing until you agree.
+
+### Let Claude orchestrate agents
+
+"Orchestrer" (<kbd>O</kbd>, or in the agents view) starts Claude Opus at `xhigh` effort in a worktree of its own, on
+a new `orchestration-…` branch, following `studio guide orchestrate`. It reads the roadmap and the code, plans waves
+of planned tasks and bugs that touch separate parts of the game, and starts a Claude agent on each one with
+`studio start`, each in a worktree branched from its integration branch. It waits on them with `studio wait`, reads
+their screen with `studio peek`, answers them with `studio send`, reviews and merges each branch as it lands,
+resolves the conflicts, runs the project's checks after every merge, then pushes its branch and opens a pull request
+whose title names every task. It never pushes to the base branch.
+
+Everyone runs unattended, in Claude's auto mode. Agents started by the orchestrator get rules on top of their task
+(decide and log it, commit without pushing, end with a note and `review`), and stay out of your way: one finishing
+its turn waits on the orchestrator, not on you. Only a permission Claude will not grant itself turns an agent amber,
+and only you can answer it: an agent drives only the agents it launched, and never answers a permission. Anything
+that needs your decision (an idea, a vague task, a design call) is left aside with a note. Merged tasks stay in
+review until you have tried them.
 
 ### Updates
 
@@ -139,6 +159,7 @@ builds and installs from source instead.
 | <kbd>⌥1</kbd>–<kbd>⌥9</kbd> | switch game |
 | <kbd>C</kbd> <kbd>B</kbd> <kbd>I</kbd> | new task, bug, idea |
 | <kbd>A</kbd> | start an agent |
+| <kbd>O</kbd> | orchestrate agents |
 | <kbd>J</kbd> <kbd>K</kbd> <kbd>Enter</kbd> | move through a list, open |
 | <kbd>/</kbd> | filter |
 

@@ -42,6 +42,9 @@ const tauriApi = {
   sessions: () => invoke<Session[]>("sessions_list"),
   sessionStart: (req: StartRequest) => invoke<Session>("session_start", { req }),
   sessionSetup: (project: string) => invoke<Session>("session_setup", { project }),
+  /** Claude Opus delegating the roadmap's parallel work to agents and merging it on an integration branch. */
+  sessionOrchestrate: (project: string, parallel: number, prompt: string) =>
+    invoke<Session>("session_orchestrate", { project, parallel, prompt }),
   sessionResume: (id: string) => invoke<Session>("session_resume", { id }),
   sessionStop: (id: string) => invoke<void>("session_stop", { id }),
 

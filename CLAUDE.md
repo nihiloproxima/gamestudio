@@ -46,11 +46,22 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   the app. Claude runs with `--settings ~/.gamestudio/claude-hooks.json` (hooks call `studio hook …` → status
   working/waiting/idle, Claude session id for `--resume`), Codex with `-c notify=[…]`. Sessions get `STUDIO_SESSION`,
   `STUDIO_PROJECT`, `STUDIO_ITEM`, `STUDIO_AGENT` and `~/.gamestudio/bin` first on PATH. tmux takes a new session's
-  PATH from the creating client, so `tmux::new_session` sets it on the client too.
+  PATH from the creating client, so `tmux::new_session` sets it on the client too. They also get
+  `CLAUDE_CODE_SCROLL_SPEED=3`: Claude Code makes up for xterm.js's damped wheel only when it recognizes xterm.js,
+  which tmux hides from it.
 - **`studio` CLI** (`cli.rs` → socket → `control.rs`): the app binary run with arguments. Same code paths as the UI,
   emits `data-changed` / `sessions-changed` so the UI follows. `studio guide setup` (`guide_setup.md`, no app needed)
   is the procedure an agent follows to set a game up; `studio import plan.json [--dry-run]` (`plan.rs`) writes a
   whole plan after validating all of it. "Configurer avec Claude" launches a session told to follow that guide.
+- **Orchestration** (`sessions::orchestrate`, `guide_orchestrate.md`): "Orchestrer" starts Claude (`--model opus
+  --effort xhigh`) in its own worktree on a new `orchestration-<date>` branch, told to follow `studio guide
+  orchestrate`: pick parallel work from the roadmap, `studio start` an agent per item, `studio wait` / `peek` /
+  `send`, review and merge each branch, open one PR, never push the base. A session started by an agent records it
+  as `parent`; started by an orchestrator, it is a `worker`: its worktree branches from the orchestrator's branch, its
+  brief ends with the unattended rules (`WORKER_RULES`), and Claude's `idle_prompt` notification leaves it idle.
+  Orchestrator and workers run in `--permission-mode auto`. An agent sends to or stops only its own children, and
+  never types into a session waiting on the user. The Stop hook's `last_assistant_message` becomes the session's
+  `message`; SessionStart only records the Claude session id (a mid-turn compaction no longer looks idle).
 - **Links** between items and work are by naming: a branch or PR title containing `JEU-12` belongs to JEU-12
   (`src/lib/links.ts`). Default branch names start with the lowercase id.
 - **Worktrees** (`worktrees.rs`): read from `git worktree list`; created under `~/.gamestudio/worktrees`; removal
@@ -78,7 +89,8 @@ game's vision and objectives ("Le cap").
 - **Amber pulsing (`--attention`) means "an agent is waiting on you" and nothing else.**
 - Type: Mona Sans variable, wide headings (`font-stretch: 125%`); monospace only for ids, branches, paths, terminals.
 - Rows, not card grids (except the asset gallery). No all-caps eyebrows, no middle-dot meta strings.
-- Keyboard first: ⌘K palette, ⌘1–7 views, ⌥1–9 games, C/B/I capture, A launch, j/k + Enter in lists, / filter.
+- Keyboard first: ⌘K palette, ⌘1–7 views, ⌥1–9 games, C/B/I capture, A launch, O orchestrate, j/k + Enter in lists,
+  / filter.
   Shortcuts use `KeyboardEvent.code` so they work on AZERTY.
 
 ## Next

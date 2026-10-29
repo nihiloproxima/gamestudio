@@ -7,6 +7,7 @@ import {
   GitBranch,
   GitMerge,
   GitPullRequest,
+  Network,
   Play,
   Plus,
   Power,
@@ -24,6 +25,8 @@ import {
   go,
   itemsById,
   now,
+  openOrchestration,
+  orchestrator,
   project,
   projectSessions,
   refreshWorktrees,
@@ -92,6 +95,11 @@ async function stop(s: Session) {
 
 const STATUS_TEXT = { waiting: "attend ta réponse", working: "travaille", idle: "au repos", offline: "arrêté" };
 const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal" };
+
+function agentName(s: Session) {
+  if (s.role === "orchestrator") return "L'orchestrateur";
+  return s.role === "worker" ? `${AGENT_NAME[s.agent]}, pour l'orchestrateur,` : AGENT_NAME[s.agent];
+}
 </script>
 
 <template>
@@ -100,6 +108,7 @@ const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal" };
       <h1>Agents</h1>
       <span class="muted">{{ projectSessions.filter((s) => s.status !== "offline").length }} session(s) en cours</span>
       <span class="spacer" />
+      <button class="btn btn-quiet" @click="openOrchestration()"><Network />{{ orchestrator ? "Orchestrateur" : "Orchestrer" }}</button>
       <button class="btn btn-solid" @click="store.launch = {}"><Play />Lancer un agent</button>
     </header>
 
@@ -183,7 +192,7 @@ const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal" };
               <p class="muted" :title="selected.cwd">
                 <AgentIcon :agent="selected.agent" :size="12" />
                 <span class="ellipsis">
-                  {{ AGENT_NAME[selected.agent] }} {{ STATUS_TEXT[selected.status] }} {{ since(selected.statusAt, now) }}, dans
+                  {{ agentName(selected) }} {{ STATUS_TEXT[selected.status] }} {{ since(selected.statusAt, now) }}, dans
                   <span class="code">{{ tilde(selected.cwd) }}</span>
                 </span>
               </p>

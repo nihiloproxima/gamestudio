@@ -92,6 +92,10 @@ export interface Session {
   status: AgentStatus;
   statusAt: string;
   message: string | null;
+  /** The session that launched this one with `studio start`. */
+  parent: string | null;
+  /** Unattended sessions: the orchestrator, and the agents it launched. */
+  role: "orchestrator" | "worker" | null;
 }
 
 export interface StartRequest {

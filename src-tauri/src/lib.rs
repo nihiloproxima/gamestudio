@@ -57,6 +57,7 @@ pub fn run() {
             commands::sessions_list,
             commands::session_start,
             commands::session_setup,
+            commands::session_orchestrate,
             commands::session_resume,
             commands::session_stop,
             commands::worktrees_list,

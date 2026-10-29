@@ -9,7 +9,7 @@ export function useListNav(items: Ref<Item[]>) {
 
   function onKey(e: KeyboardEvent) {
     if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (store.palette || store.capture || store.launch) return;
+    if (store.palette || store.capture || store.launch || store.orchestrate) return;
     const list = items.value;
     if (!list.length) return;
     const at = list.findIndex((i) => i.id === selected.value);

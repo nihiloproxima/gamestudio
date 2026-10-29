@@ -54,6 +54,7 @@ export const store = reactive({
   palette: false,
   capture: null as { kind: ItemKind; milestone?: string } | null,
   launch: null as { item?: string; path?: string } | null,
+  orchestrate: false,
   toasts: [] as Toast[],
   confirm: null as { text: string; action: string; resolve: (ok: boolean) => void } | null,
 });
@@ -111,6 +112,7 @@ function openFromUrl() {
   store.drawer = q.get("item");
   store.palette = q.has("palette");
   if (q.has("launch")) store.launch = { item: q.get("launch") || undefined };
+  store.orchestrate = q.has("orchestrate");
   if (q.has("capture")) store.capture = { kind: (q.get("capture") || "task") as ItemKind };
 }
 
@@ -342,6 +344,29 @@ export async function setupWithClaude(projectId = store.projectId) {
     go({ name: "agents", session: session.id });
   } catch (e) {
     fail(e, "Configuration");
+  }
+}
+
+/** The current game's live orchestrator: there is one at most. */
+export const orchestrator = computed(() =>
+  projectSessions.value.find((s) => s.role === "orchestrator" && s.status !== "offline"),
+);
+
+/** Shows the running orchestrator, or asks how to start one. */
+export function openOrchestration() {
+  if (orchestrator.value) go({ name: "agents", session: orchestrator.value.id });
+  else store.orchestrate = true;
+}
+
+export async function orchestrate(parallel: number, prompt: string) {
+  try {
+    const session = await api.sessionOrchestrate(store.projectId, parallel, prompt);
+    await refreshSessions();
+    refreshWorktrees();
+    store.orchestrate = false;
+    go({ name: "agents", session: session.id });
+  } catch (e) {
+    fail(e, "Orchestration");
   }
 }
 
