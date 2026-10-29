@@ -45,6 +45,8 @@ const tauriApi = {
   /** Claude Opus delegating the roadmap's parallel work to agents and merging it on an integration branch. */
   sessionOrchestrate: (project: string, parallel: number, prompt: string) =>
     invoke<Session>("session_orchestrate", { project, parallel, prompt }),
+  /** Runs the game from the main checkout or a worktree; again where it runs, restarts it. */
+  sessionPlay: (project: string, path?: string) => invoke<Session>("session_play", { project, path }),
   sessionResume: (id: string) => invoke<Session>("session_resume", { id }),
   sessionStop: (id: string) => invoke<void>("session_stop", { id }),
 

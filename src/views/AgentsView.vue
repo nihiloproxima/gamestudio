@@ -4,6 +4,7 @@ import {
   Bot,
   Code,
   FolderGit2,
+  Gamepad2,
   GitBranch,
   GitMerge,
   GitPullRequest,
@@ -27,6 +28,7 @@ import {
   now,
   openOrchestration,
   orchestrator,
+  playGame,
   project,
   projectSessions,
   refreshWorktrees,
@@ -89,16 +91,20 @@ async function removeWorktree(w: Worktree) {
 }
 
 async function stop(s: Session) {
-  const what = s.agent === "shell" ? "ce terminal" : `l'agent ${s.agent} sur « ${s.title} »`;
+  const what = s.agent === "shell" ? "ce terminal" : s.agent === "game" ? "le jeu" : `l'agent ${s.agent} sur « ${s.title} »`;
   if (await confirmAsk(`Arrêter ${what} ? Ce qui tourne dans la session est interrompu.`, "Arrêter")) stopSession(s.id);
 }
 
 const STATUS_TEXT = { waiting: "attend ta réponse", working: "travaille", idle: "au repos", offline: "arrêté" };
-const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal" };
+const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal", game: "Le jeu" };
 
 function agentName(s: Session) {
   if (s.role === "orchestrator") return "L'orchestrateur";
   return s.role === "worker" ? `${AGENT_NAME[s.agent]}, pour l'orchestrateur,` : AGENT_NAME[s.agent];
+}
+
+function statusText(s: Session) {
+  return s.agent === "game" && s.status !== "offline" ? "lancé" : STATUS_TEXT[s.status];
 }
 </script>
 
@@ -123,6 +129,7 @@ function agentName(s: Session) {
             <StatusDot v-if="sessions.length" :status="statusOf(sessions)" />
             <span class="grow" />
             <div class="lane-tools">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Jouer ici" @click="playGame(w.path)"><Gamepad2 /></button>
               <button class="btn btn-ghost btn-sm btn-icon" title="Terminal ici" @click="shellHere(w.path)"><SquareTerminal /></button>
               <button class="btn btn-ghost btn-sm btn-icon" title="Agent ici" @click="store.launch = { path: w.main ? undefined : w.path }"><Bot /></button>
               <button class="btn btn-ghost btn-sm btn-icon" title="Ouvrir dans VS Code" @click="code(w.path)"><Code /></button>
@@ -192,13 +199,16 @@ function agentName(s: Session) {
               <p class="muted" :title="selected.cwd">
                 <AgentIcon :agent="selected.agent" :size="12" />
                 <span class="ellipsis">
-                  {{ agentName(selected) }} {{ STATUS_TEXT[selected.status] }} {{ since(selected.statusAt, now) }}, dans
+                  {{ agentName(selected) }} {{ statusText(selected) }} {{ since(selected.statusAt, now) }}, dans
                   <span class="code">{{ tilde(selected.cwd) }}</span>
                 </span>
               </p>
             </div>
             <button class="btn btn-ghost btn-sm" @click="code(selected.cwd)"><Code />VS Code</button>
             <button class="btn btn-ghost btn-sm" @click="shellHere(selected.cwd)"><Plus />Terminal ici</button>
+            <button v-if="selected.agent === 'game' && selected.status !== 'offline'" class="btn btn-quiet btn-sm" @click="playGame(selected.cwd)">
+              <RotateCcw />Relancer
+            </button>
             <button v-if="selected.status === 'offline'" class="btn btn-quiet btn-sm" @click="resumeSession(selected.id)"><RotateCcw />Reprendre</button>
             <button class="btn btn-ghost btn-sm" :title="selected.status === 'offline' ? 'Oublier' : 'Arrêter'" @click="stop(selected)">
               <Power />{{ selected.status === "offline" ? "Oublier" : "Arrêter" }}

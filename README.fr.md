@@ -87,6 +87,10 @@ tâche (`fro-12-armures`), pour que sa pull request s'y rattache. Claude Code es
 un agent qui attend pulse en ambre et se compte sur l'icône du Dock. Après un redémarrage, un clic reprend la
 conversation Claude d'une session.
 
+Le jeu tourne de la même façon (<kbd>P</kbd>, ou depuis n'importe quel worktree pour essayer la branche d'un agent) :
+sa sortie reste dans un terminal, et le relancer le redémarre sur le code du moment. Gamestudio reconnaît un projet
+Godot ; pour un autre moteur, indique la commande dans les réglages.
+
 ### La commande `studio`
 
 Le binaire de l'app sert aussi de ligne de commande, pour toi et pour les agents. Les sessions lancées par l'app
@@ -167,6 +171,7 @@ clone, `pnpm app:install` construit et installe à partir des sources.
 | <kbd>C</kbd> <kbd>B</kbd> <kbd>I</kbd> | nouvelle tâche, nouveau bug, nouvelle idée |
 | <kbd>A</kbd> | lancer un agent |
 | <kbd>O</kbd> | orchestrer des agents |
+| <kbd>P</kbd> | lancer le jeu |
 | <kbd>J</kbd> <kbd>K</kbd> <kbd>Entrée</kbd> | parcourir une liste, ouvrir |
 | <kbd>/</kbd> | filtrer |
 

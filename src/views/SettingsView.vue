@@ -11,7 +11,7 @@ import { since } from "../lib/format";
 const SWATCHES = ["#ff79c6", "#8bd5ca", "#ef9f76", "#89b4fa", "#cba6f7", "#a6e3a1", "#f9e2af", "#f38ba8", "#94e2d5", "#b4befe"];
 
 const creating = ref(false);
-const form = reactive({ name: "", key: "", color: "", path: "", github: "", base: "", assets: "", setup: "" });
+const form = reactive({ name: "", key: "", color: "", path: "", github: "", base: "", assets: "", setup: "", run: "" });
 
 function load() {
   const p = creating.value ? undefined : project.value;
@@ -24,6 +24,7 @@ function load() {
     base: p?.base ?? "",
     assets: p?.assets.join("\n") ?? "assets",
     setup: p?.setup ?? "",
+    run: p?.run ?? "",
   });
 }
 watch([() => project.value?.id, creating], load, { immediate: true });
@@ -39,7 +40,8 @@ const dirty = computed(() => {
     form.github !== p.github ||
     form.base !== p.base ||
     form.assets !== p.assets.join("\n") ||
-    form.setup !== p.setup
+    form.setup !== p.setup ||
+    form.run !== p.run
   );
 });
 
@@ -53,6 +55,7 @@ async function save() {
     base: form.base.trim(),
     assets: form.assets.split(/[\n,]/).map((a) => a.trim()).filter(Boolean),
     setup: form.setup.trim(),
+    run: form.run.trim(),
   };
   if (creating.value) {
     const added = await attachProject(meta);
@@ -151,6 +154,10 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
                 <input v-model="form.setup" class="field code" placeholder="pnpm install (facultatif)" spellcheck="false" />
               </label>
             </div>
+            <label>
+              <span class="label">Commande qui lance le jeu</span>
+              <input v-model="form.run" class="field code" placeholder="détectée si vide (Godot)" spellcheck="false" />
+            </label>
             <label>
               <span class="label">Dossiers d'assets, un par ligne, relatifs au dépôt</span>
               <textarea v-model="form.assets" class="field code" rows="3" spellcheck="false" />

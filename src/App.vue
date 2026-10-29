@@ -17,7 +17,7 @@ import AssetsView from "./views/AssetsView.vue";
 import GithubView from "./views/GithubView.vue";
 import SettingsView from "./views/SettingsView.vue";
 import OnboardingView from "./views/OnboardingView.vue";
-import { boot, go, openOrchestration, store, switchProject, type RouteName } from "./state/store";
+import { boot, go, openOrchestration, playGame, store, switchProject, type RouteName } from "./state/store";
 import { isTyping } from "./lib/native";
 
 const VIEWS: RouteName[] = ["overview", "roadmap", "tasks", "backlog", "agents", "assets", "github"];
@@ -47,6 +47,7 @@ function onKey(e: KeyboardEvent) {
     else if (e.key === "i") store.capture = { kind: "idea" };
     else if (e.key === "a") store.launch = store.drawer ? { item: store.drawer } : {};
     else if (e.key === "o") openOrchestration();
+    else if (e.key === "p") playGame();
     else if (e.key === "/") document.querySelector<HTMLInputElement>(".find input")?.focus();
     else return;
   } else {

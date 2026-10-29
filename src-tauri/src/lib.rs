@@ -2,6 +2,7 @@ mod assets;
 mod cli;
 mod commands;
 mod control;
+mod game;
 mod github;
 mod paths;
 mod plan;
@@ -58,6 +59,7 @@ pub fn run() {
             commands::session_start,
             commands::session_setup,
             commands::session_orchestrate,
+            commands::session_play,
             commands::session_resume,
             commands::session_stop,
             commands::worktrees_list,

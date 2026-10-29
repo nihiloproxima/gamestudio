@@ -32,7 +32,7 @@ Roadmap et projet
   studio milestone set <id> [--title …] [--status …] [--target …] [--goal …] [--order <n>]
   studio project                             les réglages du projet
   studio project set [--name …] [--color …] [--path …] [--github …] [--base …] [--assets a,b] [--setup …]
-                     [--vision <texte>]
+                     [--run <commande qui lance le jeu, lue dans le dépôt si vide>] [--vision <texte>]
   studio project add [--path <dépôt>] [--name <nom> --key <CLÉ>] [mêmes options]
                                              suit le jeu du dépôt (par défaut celui du dossier courant) ; ses
                                              données reviennent si le dépôt a déjà une branche gamestudio, sinon
@@ -125,8 +125,8 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
 
 /// The agent session running this command, if any. A person in one of the app's terminals counts as no one.
 fn caller() -> Option<String> {
-    let shell = std::env::var("STUDIO_AGENT").is_ok_and(|a| a == "shell");
-    std::env::var("STUDIO_SESSION").ok().filter(|s| !s.is_empty() && !shell)
+    let person = std::env::var("STUDIO_AGENT").is_ok_and(|a| a == "shell" || a == "game");
+    std::env::var("STUDIO_SESSION").ok().filter(|s| !s.is_empty() && !person)
 }
 
 fn context(args: &Args) -> Context {
@@ -153,7 +153,7 @@ fn fields(args: &Args, texts: &[&str], lists: &[&str]) -> Result<Map<String, Val
 }
 
 const ITEM_TEXTS: [&str; 6] = ["--title", "--kind", "--status", "--priority", "--milestone", "--body"];
-const PROJECT_TEXTS: [&str; 8] = ["--name", "--key", "--color", "--path", "--github", "--base", "--setup", "--vision"];
+const PROJECT_TEXTS: [&str; 9] = ["--name", "--key", "--color", "--path", "--github", "--base", "--setup", "--run", "--vision"];
 
 fn request(args: &Args) -> Result<Option<Request>, String> {
     let Some(cmd) = args.positional.first() else {
@@ -313,7 +313,7 @@ fn print_result(cmd: &str, v: &Value) {
         }
         "project" => {
             println!("{} ({}, clé {})", text(v, "name"), text(v, "id"), text(v, "key"));
-            for (label, key) in [("dépôt", "path"), ("github", "github"), ("base", "base"), ("installation", "setup"), ("couleur", "color")] {
+            for (label, key) in [("dépôt", "path"), ("github", "github"), ("base", "base"), ("installation", "setup"), ("lancement", "run"), ("couleur", "color")] {
                 println!("  {label:<13} {}", text(v, key));
             }
             let assets: Vec<&str> = v["assets"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();

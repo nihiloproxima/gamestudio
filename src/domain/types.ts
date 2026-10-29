@@ -14,6 +14,8 @@ export interface ProjectMeta {
   base: string;
   assets: string[];
   setup: string;
+  /** Runs the game; when empty, the core reads it from the repo (Godot). */
+  run: string;
 }
 
 export interface Project extends ProjectMeta {
@@ -76,7 +78,8 @@ export interface ItemPatch {
 export type AgentStatus = "waiting" | "working" | "idle" | "offline";
 export const STATUS_PRIORITY: AgentStatus[] = ["waiting", "working", "idle", "offline"];
 
-export type AgentKind = "claude" | "codex" | "shell";
+/** `game` is the game itself, running (`sessionPlay`): not an agent one can start from the launch sheet. */
+export type AgentKind = "claude" | "codex" | "shell" | "game";
 
 export interface Session {
   /** Also its tmux session name. */

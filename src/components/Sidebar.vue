@@ -4,6 +4,7 @@ import {
   Bot,
   ChevronsUpDown,
   Cloud,
+  Gamepad2,
   CloudOff,
   GitPullRequest,
   Images,
@@ -26,6 +27,7 @@ import {
   go,
   isOpen,
   now,
+  playGame,
   project,
   projectSessions,
   restartApp,
@@ -77,25 +79,30 @@ function goTo(id: RouteName) {
   <aside class="sidebar">
     <div class="drag" data-tauri-drag-region />
 
-    <PickMenu :options="projectOptions" :model-value="store.projectId" @update:model-value="switchProject">
-      <template #default="{ toggle }">
-        <button v-if="project" class="switcher" @click="toggle">
-          <ProjectGlyph :project="project" :size="30" />
-          <span class="who">
-            <span class="name">{{ project.name }}</span>
-            <span class="key">{{ project.key }}</span>
-          </span>
-          <span v-if="waitingElsewhere" class="elsewhere" title="Un agent t'attend dans un autre projet" />
-          <ChevronsUpDown :size="15" class="chev" />
-        </button>
-      </template>
-      <template #option="{ option }">
-        <ProjectGlyph :project="store.projects.find((p) => p.id === option.id)!" :size="20" />
-        <span class="text">{{ option.label }}</span>
-        <span v-if="waitingIn(option.id)" class="waiting-count">{{ waitingIn(option.id) }}</span>
-        <kbd>⌥{{ store.projects.findIndex((p) => p.id === option.id) + 1 }}</kbd>
-      </template>
-    </PickMenu>
+    <div class="game">
+      <PickMenu class="game-pick" :options="projectOptions" :model-value="store.projectId" @update:model-value="switchProject">
+        <template #default="{ toggle }">
+          <button v-if="project" class="switcher" @click="toggle">
+            <ProjectGlyph :project="project" :size="30" />
+            <span class="who">
+              <span class="name">{{ project.name }}</span>
+              <span class="key">{{ project.key }}</span>
+            </span>
+            <span v-if="waitingElsewhere" class="elsewhere" title="Un agent t'attend dans un autre projet" />
+            <ChevronsUpDown :size="15" class="chev" />
+          </button>
+        </template>
+        <template #option="{ option }">
+          <ProjectGlyph :project="store.projects.find((p) => p.id === option.id)!" :size="20" />
+          <span class="text">{{ option.label }}</span>
+          <span v-if="waitingIn(option.id)" class="waiting-count">{{ waitingIn(option.id) }}</span>
+          <kbd>⌥{{ store.projects.findIndex((p) => p.id === option.id) + 1 }}</kbd>
+        </template>
+      </PickMenu>
+      <button v-if="project" class="play" title="Lancer le jeu (P)" :disabled="!project.present" @click="playGame()">
+        <Gamepad2 :size="16" />
+      </button>
+    </div>
 
     <div class="quick">
       <button class="search" @click="store.palette = true">
@@ -190,11 +197,20 @@ function goTo(id: RouteName) {
   flex: none;
   height: 40px;
 }
+.game {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.game-pick {
+  flex: 1;
+  min-width: 0;
+}
 .switcher {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 232px;
+  width: 100%;
   padding: 7px 8px;
   border-radius: var(--radius-md);
   text-align: left;
@@ -269,6 +285,27 @@ function goTo(id: RouteName) {
 .search span {
   flex: 1;
   text-align: left;
+}
+.play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  color: var(--accent);
+  transition:
+    background 120ms,
+    border-color 120ms;
+}
+.play:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.play:disabled {
+  color: var(--overlay);
+  opacity: 0.5;
 }
 .add {
   display: grid;
