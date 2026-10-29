@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{paths, store, tmux, worktrees};
+use crate::{game, paths, store, tmux, worktrees};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +18,7 @@ pub struct Session {
     pub project: String,
     pub item: Option<String>,
     pub title: String,
-    /// `claude`, `codex` or `shell`.
+    /// `claude`, `codex`, `shell`, or `game` (the game running, `play`).
     pub agent: String,
     pub cwd: String,
     pub branch: Option<String>,
@@ -142,10 +142,6 @@ pub fn write_hooks() -> Result<(), String> {
     paths::write_atomic(&hooks_file(), &serde_json::to_string_pretty(&settings).unwrap())
 }
 
-fn shell_quote(s: &str) -> String {
-    format!("'{}'", s.replace('\'', "'\\''"))
-}
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartRequest {
@@ -243,12 +239,12 @@ fn claude_flags(role: Option<&str>) -> &'static str {
 /// The shell command that runs the agent, then leaves a login shell behind when it exits.
 fn agent_command(agent: &str, role: Option<&str>, brief_file: Option<&Path>, resume: Option<&Session>) -> Result<Option<String>, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let brief_arg = brief_file.map(|f| format!(" \"$(cat {})\"", shell_quote(&f.display().to_string()))).unwrap_or_default();
+    let brief_arg = brief_file.map(|f| format!(" \"$(cat {})\"", paths::shell_quote(&f.display().to_string()))).unwrap_or_default();
     let run = match agent {
         "claude" => {
-            let settings = format!("--settings {}{}", shell_quote(&hooks_file().display().to_string()), claude_flags(role));
+            let settings = format!("--settings {}{}", paths::shell_quote(&hooks_file().display().to_string()), claude_flags(role));
             match resume {
-                Some(Session { claude_session: Some(id), .. }) => format!("claude {settings} --resume {}", shell_quote(id)),
+                Some(Session { claude_session: Some(id), .. }) => format!("claude {settings} --resume {}", paths::shell_quote(id)),
                 Some(_) => format!("claude {settings} --continue"),
                 None => format!("claude {settings}{brief_arg}"),
             }
@@ -256,8 +252,8 @@ fn agent_command(agent: &str, role: Option<&str>, brief_file: Option<&Path>, res
         "codex" => {
             let notify = format!("notify=[\"{}\",\"hook\",\"codex\"]", exe.display());
             match resume {
-                Some(_) => format!("codex -c {} resume --last", shell_quote(&notify)),
-                None => format!("codex -c {}{brief_arg}", shell_quote(&notify)),
+                Some(_) => format!("codex -c {} resume --last", paths::shell_quote(&notify)),
+                None => format!("codex -c {}{brief_arg}", paths::shell_quote(&notify)),
             }
         }
         "shell" => return Ok(None),
@@ -266,6 +262,7 @@ fn agent_command(agent: &str, role: Option<&str>, brief_file: Option<&Path>, res
     Ok(Some(format!("{run}; exec \"$SHELL\" -l")))
 }
 
+/// Starts the session in tmux or, when it is live, replaces what runs in it.
 fn spawn(session: &Session, command: Option<&str>) -> Result<(), String> {
     let item = session.item.clone().unwrap_or_default();
     let path = format!("{}:{}", bin_dir().display(), std::env::var("PATH").unwrap_or_default());
@@ -279,7 +276,10 @@ fn spawn(session: &Session, command: Option<&str>) -> Result<(), String> {
         // it recognizes xterm.js, which it cannot behind tmux: tell it.
         ("CLAUDE_CODE_SCROLL_SPEED", "3"),
     ];
-    tmux::new_session(&session.id, Path::new(&session.cwd), &env, command)
+    match command {
+        Some(c) if tmux::has_session(&session.id) => tmux::respawn(&session.id, Path::new(&session.cwd), &env, c),
+        _ => tmux::new_session(&session.id, Path::new(&session.cwd), &env, command),
+    }
 }
 
 pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
@@ -388,6 +388,9 @@ pub fn resume(app: &AppHandle, id: &str) -> Result<Session, String> {
     if session.status != "offline" {
         return Err(format!("{id} tourne déjà"));
     }
+    if session.agent == "game" {
+        return play(app, &session.project, Some(&session.cwd));
+    }
     if !Path::new(&session.cwd).is_dir() {
         return Err(format!("{} n'existe plus", session.cwd));
     }
@@ -401,6 +404,57 @@ pub fn resume(app: &AppHandle, id: &str) -> Result<Session, String> {
     });
     changed(app);
     find(id).map_err(|_| "Session perdue".into())
+}
+
+/// Runs the game from the main checkout or a worktree (`path`), in a session of its own: its output shows in a
+/// terminal, and what is left once it quits is a shell. Playing again where it runs restarts it on the current code,
+/// in the same terminal.
+pub fn play(app: &AppHandle, project: &str, path: Option<&str>) -> Result<Session, String> {
+    let project = store::project(project)?;
+    let cwd = match path {
+        Some(p) => PathBuf::from(p),
+        None => worktrees::repo_path(&project)?,
+    };
+    if !cwd.is_dir() {
+        return Err(format!("{} n'existe pas", cwd.display()));
+    }
+    let cwd = paths::canonical(&cwd);
+    let command = format!("{}; exec \"$SHELL\" -l", game::command(&project, &cwd)?);
+    let now = paths::now_iso();
+    let known = list().into_iter().find(|s| s.agent == "game" && s.project == project.id && Path::new(&s.cwd) == cwd);
+    let session = known.unwrap_or_else(|| {
+        let branch = paths::run(paths::git(&cwd).args(["branch", "--show-current"]))
+            .map(|b| b.trim().to_string())
+            .ok()
+            .filter(|b| !b.is_empty());
+        Session {
+            id: unique_id(&format!("{}-jeu", project.id)),
+            project: project.id.clone(),
+            item: None,
+            title: branch.as_ref().map_or("Jeu".into(), |b| format!("Jeu sur {b}")),
+            agent: "game".into(),
+            cwd: cwd.display().to_string(),
+            branch,
+            created: now.clone(),
+            claude_session: None,
+            status: "idle".into(),
+            status_at: now.clone(),
+            message: None,
+            parent: None,
+            role: None,
+        }
+    });
+    spawn(&session, Some(&command))?;
+    {
+        let mut records = RECORDS.lock().unwrap();
+        match records.iter_mut().find(|s| s.id == session.id) {
+            Some(s) => s.status_at = now,
+            None => records.push(session.clone()),
+        }
+        save(&records);
+    }
+    changed(app);
+    find(&session.id)
 }
 
 /// What the orchestrator is told; the procedure itself is `studio guide orchestrate`.
@@ -453,7 +507,7 @@ pub fn send(app: &AppHandle, id: &str, text: &str, caller: Option<&str>) -> Resu
         _ => {}
     }
     tmux::paste(id, text)?;
-    if session.agent != "shell" {
+    if matches!(session.agent.as_str(), "claude" | "codex") {
         // Working from now on, so a `studio wait` right after does not see it idle before its hook fires.
         update(id, |s| {
             s.status = "working".into();

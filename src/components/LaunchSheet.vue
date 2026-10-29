@@ -30,7 +30,7 @@ const others = computed(() => (store.worktrees ?? []).filter((w) => !w.main));
 const pathOptions = computed(() => others.value.map((w) => ({ id: w.path, label: w.branch ?? tilde(w.path) })));
 const mainPath = computed(() => store.worktrees?.find((w) => w.main)?.path ?? project.value?.path ?? "");
 const busyMain = computed(() =>
-  store.sessions.filter((s) => s.project === store.projectId && s.status !== "offline" && s.agent !== "shell" && s.cwd === mainPath.value),
+  store.sessions.filter((s) => s.project === store.projectId && s.status !== "offline" && s.agent !== "shell" && s.agent !== "game" && s.cwd === mainPath.value),
 );
 
 /** `jeu-12-armures-slot-de-torse`: the item id leads, so PRs and worktrees link back to it. */

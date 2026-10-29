@@ -31,6 +31,8 @@ Lis, sans tout dérouler, ce qui dit où en est le jeu :
 - Les dossiers d'assets (images, sons, modèles) : là où il y en a vraiment, relatifs au dépôt.
 - Ce qu'il faut pour travailler dans un worktree neuf (`pnpm install`, rien pour Godot…), et la branche d'intégration
   (main, next…).
+- La commande qui lance le jeu depuis le dépôt (`cargo run`, `love .`…) : rien pour un projet Godot, que Gamestudio
+  reconnaît seul.
 
 ## 3. Les questions à l'utilisateur
 
@@ -42,7 +44,8 @@ AskUserQuestion s'il est disponible, sinon dans la conversation), avec ta recomm
 - Quel jalon est en cours, et ses échéances s'il y en a ?
 - La granularité : une tâche par étape du plan, ou un regroupement ?
 - Les idées « pour plus tard » : à trier (inbox) ou directement au backlog ?
-- Les réglages incertains : branche de base des worktrees, commande d'installation, dossiers d'assets.
+- Les réglages incertains : branche de base des worktrees, commande d'installation, commande de lancement, dossiers
+  d'assets.
 - Un tracker externe (Linear…) à reprendre ? Si oui et qu'un outil y donne accès, propose de l'importer de la même
   façon ; sinon demande un export.
 
@@ -59,6 +62,7 @@ Ne pose pas une question dont la réponse est dans le dépôt.
     "assets": ["assets", "content"],
     "base": "origin/main",
     "setup": "",
+    "run": "",
     "github": "proprietaire/depot"
   },
   "milestones": [
@@ -81,7 +85,7 @@ Valeurs possibles :
 - `priority` : `urgent`, `high`, `normal` (par défaut), `low`.
 - Jalon `status` : `planned`, `active` (un seul en principe), `done` ; `target` au format AAAA-MM-JJ.
 - `milestone` d'un élément : le titre (ou l'id) d'un jalon du plan ou du projet.
-- `project` : seulement les réglages à changer (`name`, `color`, `path`, `github`, `base`, `assets`, `setup`,
+- `project` : seulement les réglages à changer (`name`, `color`, `path`, `github`, `base`, `assets`, `setup`, `run`,
   `vision`).
 
 Pour bien remplir :

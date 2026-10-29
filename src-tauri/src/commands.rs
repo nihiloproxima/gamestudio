@@ -161,6 +161,12 @@ pub async fn session_orchestrate(app: AppHandle, project: String, parallel: u32,
     blocking(move || sessions::orchestrate(&app, &project, parallel, &prompt)).await
 }
 
+/// Runs the game from the main checkout, or from the worktree at `path`; again where it runs, restarts it.
+#[tauri::command]
+pub async fn session_play(app: AppHandle, project: String, path: Option<String>) -> Result<sessions::Session, String> {
+    blocking(move || sessions::play(&app, &project, path.as_deref())).await
+}
+
 #[tauri::command]
 pub async fn session_resume(app: AppHandle, id: String) -> Result<sessions::Session, String> {
     blocking(move || sessions::resume(&app, &id)).await

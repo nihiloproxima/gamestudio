@@ -370,6 +370,17 @@ export async function orchestrate(parallel: number, prompt: string) {
   }
 }
 
+/** Runs the game from the main checkout or a worktree, and shows its output; again where it runs, restarts it. */
+export async function playGame(path?: string) {
+  try {
+    const session = await api.sessionPlay(store.projectId, path);
+    await refreshSessions();
+    go({ name: "agents", session: session.id });
+  } catch (e) {
+    fail(e, "Lancement du jeu");
+  }
+}
+
 export async function resumeSession(id: string) {
   try {
     await api.sessionResume(id);

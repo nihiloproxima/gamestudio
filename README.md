@@ -81,6 +81,10 @@ request links back. Claude Code is launched with hooks (through `--settings`, yo
 that tell the app when it works, waits for you or is done: a waiting agent pulses amber and counts on the Dock icon.
 After a reboot, one click resumes a session's Claude conversation.
 
+The game runs the same way (<kbd>P</kbd>, or from any worktree to try an agent's branch): its output stays in a
+terminal, and playing again restarts it on the current code. Godot projects are recognized; for any other engine,
+give the command in Settings.
+
 ### The `studio` command
 
 The app's binary doubles as a command line, for you and for agents. Sessions started from the app have it on their
@@ -160,6 +164,7 @@ builds and installs from source instead.
 | <kbd>C</kbd> <kbd>B</kbd> <kbd>I</kbd> | new task, bug, idea |
 | <kbd>A</kbd> | start an agent |
 | <kbd>O</kbd> | orchestrate agents |
+| <kbd>P</kbd> | play the game |
 | <kbd>J</kbd> <kbd>K</kbd> <kbd>Enter</kbd> | move through a list, open |
 | <kbd>/</kbd> | filter |
 

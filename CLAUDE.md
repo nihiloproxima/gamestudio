@@ -46,9 +46,13 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   the app. Claude runs with `--settings ~/.gamestudio/claude-hooks.json` (hooks call `studio hook …` → status
   working/waiting/idle, Claude session id for `--resume`), Codex with `-c notify=[…]`. Sessions get `STUDIO_SESSION`,
   `STUDIO_PROJECT`, `STUDIO_ITEM`, `STUDIO_AGENT` and `~/.gamestudio/bin` first on PATH. tmux takes a new session's
-  PATH from the creating client, so `tmux::new_session` sets it on the client too. They also get
+  PATH from the creating client, so `tmux::new_session` (and `respawn`) set it on the client too. They also get
   `CLAUDE_CODE_SCROLL_SPEED=3`: Claude Code makes up for xterm.js's damped wheel only when it recognizes xterm.js,
   which tmux hides from it.
+- **Playing** (`sessions::play`, `game.rs`): "Lancer le jeu" runs the project's `run` command, or one read from the
+  repo (Godot: `project.godot` at the root or one folder down, `godot` on PATH or the app in Applications, the .NET
+  build for a C# project), in a `game` session in the main checkout or a worktree, so its output shows in a terminal.
+  Playing again there restarts it in place (`tmux respawn-pane`): attached views stay attached.
 - **`studio` CLI** (`cli.rs` → socket → `control.rs`): the app binary run with arguments. Same code paths as the UI,
   emits `data-changed` / `sessions-changed` so the UI follows. `studio guide setup` (`guide_setup.md`, no app needed)
   is the procedure an agent follows to set a game up; `studio import plan.json [--dry-run]` (`plan.rs`) writes a
@@ -89,8 +93,8 @@ game's vision and objectives ("Le cap").
 - **Amber pulsing (`--attention`) means "an agent is waiting on you" and nothing else.**
 - Type: Mona Sans variable, wide headings (`font-stretch: 125%`); monospace only for ids, branches, paths, terminals.
 - Rows, not card grids (except the asset gallery). No all-caps eyebrows, no middle-dot meta strings.
-- Keyboard first: ⌘K palette, ⌘1–7 views, ⌥1–9 games, C/B/I capture, A launch, O orchestrate, j/k + Enter in lists,
-  / filter.
+- Keyboard first: ⌘K palette, ⌘1–7 views, ⌥1–9 games, C/B/I capture, A launch, O orchestrate, P play, j/k + Enter
+  in lists, / filter.
   Shortcuts use `KeyboardEvent.code` so they work on AZERTY.
 
 ## Next

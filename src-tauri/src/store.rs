@@ -44,6 +44,9 @@ pub struct ProjectMeta {
     /// Run in a new worktree before its agent starts (dependencies, generated files).
     #[serde(default)]
     pub setup: String,
+    /// Runs the game from a checkout of its repo; when empty, the command is read from the repo (`game.rs`).
+    #[serde(default)]
+    pub run: String,
 }
 
 fn default_base() -> String {
@@ -304,12 +307,13 @@ pub struct ProjectPatch {
     pub base: Option<String>,
     pub assets: Option<Vec<String>>,
     pub setup: Option<String>,
+    pub run: Option<String>,
     pub vision: Option<String>,
 }
 
 impl ProjectPatch {
     pub fn is_empty(&self) -> bool {
-        let ProjectPatch { name, key, color, path, github, base, assets, setup, vision } = self;
+        let ProjectPatch { name, key, color, path, github, base, assets, setup, run, vision } = self;
         name.is_none()
             && key.is_none()
             && color.is_none()
@@ -318,6 +322,7 @@ impl ProjectPatch {
             && base.is_none()
             && assets.is_none()
             && setup.is_none()
+            && run.is_none()
             && vision.is_none()
     }
 
@@ -346,6 +351,9 @@ impl ProjectPatch {
         }
         if let Some(v) = self.setup {
             meta.setup = v;
+        }
+        if let Some(v) = self.run {
+            meta.run = v;
         }
         (meta, self.vision.unwrap_or(vision))
     }

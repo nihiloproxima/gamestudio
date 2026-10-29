@@ -75,6 +75,11 @@ pub fn run(cmd: &mut Command) -> Result<String, String> {
     }
 }
 
+/// One word for `sh`, whatever `s` holds.
+pub fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
 pub fn git(dir: &Path) -> Command {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(dir);

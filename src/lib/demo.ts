@@ -27,6 +27,7 @@ const projects: Project[] = [
     base: "origin/main",
     assets: ["assets", "content", "ui"],
     setup: "",
+    run: "",
     vision:
       "Survie coop en 2D (Godot). Un îlot, des saisons rudes, des maîtrises qui se gagnent en jouant.\n\n- Jouable à 4 en ligne\n- Une boucle survie → progression → donjon",
     present: true,
@@ -41,6 +42,7 @@ const projects: Project[] = [
     base: "origin/main",
     assets: ["assets"],
     setup: "",
+    run: "",
     vision: "Jeu idle contemplatif : le lac à l'aube, la forêt l'après-midi, le feu de camp la nuit.",
     present: true,
   },
@@ -54,6 +56,7 @@ const projects: Project[] = [
     base: "origin/next",
     assets: ["packages/assets/src"],
     setup: "pnpm install --frozen-lockfile",
+    run: "pnpm dev",
     vision: "City-builder géolocalisé : acheter des lieux réels, gagner Coins et Réputation, saisons classées.",
     present: true,
   },
@@ -179,6 +182,16 @@ const dim = (text: string) => c("127;132;156", text);
 const dot = (text: string) => `${c("166;227;161", "●")} ${text}`;
 
 function transcript(s: Session | undefined): string {
+  if (s?.agent === "game") {
+    return [
+      `Godot Engine v4.3.stable.official.77dcf97d8 - ${c("137;180;250", "https://godotengine.org")}`,
+      dim("Metal 3.1 - Forward+ - Using Device #0: Apple - Apple M2 Pro"),
+      "",
+      "[Réseau] hôte prêt sur le port 7777",
+      "[Monde] îlot généré en 412 ms, saison : hiver",
+      `${c("249;226;175", "WARNING:")} res://features/combat/fire_staff.gd:88 - la Nova ignore la charge`,
+    ].join("\r\n");
+  }
   if (!s || s.agent === "shell") {
     const prompt = `${c("137;180;250", "~/code/frostholm")} ${c("203;166;247", "main*")} ${c("166;227;161", "❯")} `;
     return [
@@ -350,6 +363,36 @@ export const demoApi: Api = {
       Object.assign(live, { title: "Orchestration", role: "orchestrator" });
       return { ...live };
     });
+  },
+  sessionPlay(project, path) {
+    const p = projects.find((x) => x.id === project)!;
+    // Frostholm is a Godot game, Neon City has its command: Ember shows what happens when neither is known.
+    if (project === "ember") return fail(`Gamestudio ne sait pas lancer ${p.name} : indique la commande qui le lance dans les réglages`);
+    const cwd = path ?? worktrees[project]?.find((w) => w.main)?.path ?? p.path;
+    const live = sessions.find((s) => s.agent === "game" && s.project === project && s.cwd === cwd);
+    if (live) {
+      live.statusAt = new Date().toISOString();
+      return wait(live);
+    }
+    const branch = worktrees[project]?.find((w) => w.path === cwd)?.branch ?? "main";
+    const s: Session = {
+      id: `${project}-jeu-${sessions.length}`,
+      project,
+      item: null,
+      title: `Jeu sur ${branch}`,
+      agent: "game",
+      cwd,
+      branch,
+      created: new Date().toISOString(),
+      claudeSession: null,
+      status: "idle",
+      statusAt: new Date().toISOString(),
+      message: null,
+      parent: null,
+      role: null,
+    };
+    sessions.push(s);
+    return wait(s, 500);
   },
   sessionResume(id) {
     const s = sessions.find((x) => x.id === id)!;

@@ -28,6 +28,7 @@ async function add() {
     base: "",
     assets: ["assets"],
     setup: "",
+    run: "",
   });
   if (added) await boot();
   busy.value = false;
