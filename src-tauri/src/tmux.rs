@@ -56,3 +56,22 @@ pub fn new_session(name: &str, cwd: &Path, env: &[(&str, &str)], shell_command: 
 pub fn kill_session(name: &str) -> Result<(), String> {
     paths::run(command().args(["kill-session", "-t", &format!("={name}")])).map(|_| ())
 }
+
+/// Types `text` into the session as one bracketed paste, then presses Enter: the agent gets it as one message,
+/// newlines included.
+pub fn paste(name: &str, text: &str) -> Result<(), String> {
+    let target = format!("={name}:");
+    let buffer = format!("studio-{name}");
+    paths::run(command().args(["set-buffer", "-b", &buffer, "--", text]))?;
+    paths::run(command().args(["paste-buffer", "-p", "-d", "-b", &buffer, "-t", &target]))?;
+    // Lets the agent's input take the paste in before it is submitted.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    paths::run(command().args(["send-keys", "-t", &target, "Enter"])).map(|_| ())
+}
+
+/// The last `lines` lines of the session's screen and scrollback, as plain text.
+pub fn capture(name: &str, lines: usize) -> Result<String, String> {
+    let out = paths::run(command().args(["capture-pane", "-p", "-J", "-t", &format!("={name}:"), "-S", &format!("-{lines}")]))?;
+    let all: Vec<&str> = out.trim_end().lines().collect();
+    Ok(all[all.len().saturating_sub(lines)..].join("\n"))
+}

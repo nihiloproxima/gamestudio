@@ -112,8 +112,8 @@ pub fn list(project_id: &str) -> Result<Vec<Worktree>, String> {
 }
 
 /// A new worktree for `branch` under `~/.gamestudio/worktrees/<project>/`: the branch is checked out if it exists
-/// (locally or on origin), created from the project's base otherwise.
-pub fn create(project: &store::Project, branch: &str) -> Result<PathBuf, String> {
+/// (locally or on origin), created from `from` (default: the project's base) otherwise.
+pub fn create(project: &store::Project, branch: &str, from: Option<&str>) -> Result<PathBuf, String> {
     let repo = repo_path(project)?;
     let branch = branch.trim();
     paths::run(paths::git(&repo).args(["check-ref-format", "--branch", branch]))
@@ -134,7 +134,7 @@ pub fn create(project: &store::Project, branch: &str) -> Result<PathBuf, String>
         if paths::run(paths::git(&repo).args(["rev-parse", "--verify", "-q", &remote])).is_ok() {
             cmd.args(["--track", "-b", branch]).arg(&path).arg(remote);
         } else {
-            cmd.args(["--no-track", "-b", branch]).arg(&path).arg(&project.meta.base);
+            cmd.args(["--no-track", "-b", branch]).arg(&path).arg(from.unwrap_or(&project.meta.base));
         }
     }
     paths::run(&mut cmd).map_err(|e| format!("git worktree add a échoué : {e}"))?;

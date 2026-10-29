@@ -6,6 +6,7 @@ import ItemDrawer from "./components/ItemDrawer.vue";
 import QuickCapture from "./components/QuickCapture.vue";
 import CommandPalette from "./components/CommandPalette.vue";
 import LaunchSheet from "./components/LaunchSheet.vue";
+import OrchestrateSheet from "./components/OrchestrateSheet.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 import OverviewView from "./views/OverviewView.vue";
 import RoadmapView from "./views/RoadmapView.vue";
@@ -16,11 +17,11 @@ import AssetsView from "./views/AssetsView.vue";
 import GithubView from "./views/GithubView.vue";
 import SettingsView from "./views/SettingsView.vue";
 import OnboardingView from "./views/OnboardingView.vue";
-import { boot, go, store, switchProject, type RouteName } from "./state/store";
+import { boot, go, openOrchestration, store, switchProject, type RouteName } from "./state/store";
 import { isTyping } from "./lib/native";
 
 const VIEWS: RouteName[] = ["overview", "roadmap", "tasks", "backlog", "agents", "assets", "github"];
-const modalOpen = () => store.palette || !!store.capture || !!store.launch || !!store.confirm;
+const modalOpen = () => store.palette || !!store.capture || !!store.launch || store.orchestrate || !!store.confirm;
 
 function onKey(e: KeyboardEvent) {
   // Physical keys: ⌘1 is the same key on AZERTY and QWERTY.
@@ -45,6 +46,7 @@ function onKey(e: KeyboardEvent) {
     else if (e.key === "b") store.capture = { kind: "bug" };
     else if (e.key === "i") store.capture = { kind: "idea" };
     else if (e.key === "a") store.launch = store.drawer ? { item: store.drawer } : {};
+    else if (e.key === "o") openOrchestration();
     else if (e.key === "/") document.querySelector<HTMLInputElement>(".find input")?.focus();
     else return;
   } else {
@@ -82,6 +84,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
   <QuickCapture v-if="store.capture" />
   <CommandPalette v-if="store.palette" />
   <LaunchSheet v-if="store.launch" />
+  <OrchestrateSheet v-if="store.orchestrate" />
   <ConfirmDialog />
   <ToastHost />
 </template>

@@ -146,10 +146,19 @@ pub async fn session_setup(app: AppHandle, project: String) -> Result<sessions::
             path: None,
             prompt: sessions::SETUP_PROMPT.into(),
             title: Some("Configuration de Gamestudio".into()),
+            parent: None,
+            role: None,
         };
         sessions::start(&app, req)
     })
     .await
+}
+
+/// Claude Opus on an integration branch, delegating the roadmap's parallel work to agents and merging it
+/// (`studio guide orchestrate`).
+#[tauri::command]
+pub async fn session_orchestrate(app: AppHandle, project: String, parallel: u32, prompt: String) -> Result<sessions::Session, String> {
+    blocking(move || sessions::orchestrate(&app, &project, parallel, &prompt)).await
 }
 
 #[tauri::command]

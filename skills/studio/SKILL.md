@@ -1,6 +1,6 @@
 ---
 name: studio
-description: Read and update the Gamestudio game tracker with the `studio` CLI — tasks, bugs, ideas, milestones, project settings, agent sessions. Use when working in a game repo tracked by Gamestudio and the task touches what to do next, an item id like JEU-12, logging progress, capturing an idea or a bug for later, or when asked to set a game up in Gamestudio (then run `studio guide setup` first).
+description: Read and update the Gamestudio game tracker with the `studio` CLI — tasks, bugs, ideas, milestones, project settings, agent sessions. Use when working in a game repo tracked by Gamestudio and the task touches what to do next, an item id like JEU-12, logging progress, capturing an idea or a bug for later, or when asked to set a game up in Gamestudio (then run `studio guide setup` first) or to orchestrate agents on its roadmap (`studio guide orchestrate`).
 ---
 
 # Gamestudio (`studio`)
@@ -41,6 +41,18 @@ studio milestone add "Démo Steam" --status planned --target 2026-12-01 --goal "
 studio milestone set <id> --status active
 studio project set --assets assets,content --base origin/main --setup "pnpm install" --vision -
 studio start JEU-12 --branch jeu-12-armures   # starts a Claude session on it, in a new worktree
+```
+
+## Orchestrating
+
+When launched as a game's orchestrator, or asked to orchestrate agents on its roadmap, run `studio guide orchestrate`
+and follow it. The agents you start with `studio start` are yours to drive, and only yours:
+
+```sh
+studio wait                           # until one of your agents ends its turn, waits or stops (9 min at most)
+studio peek fro-12-claude             # the end of its screen
+studio send fro-12-claude "…"         # typed into it and submitted; refused while it waits on the user
+studio stop fro-12-claude
 ```
 
 ## Setting a game up

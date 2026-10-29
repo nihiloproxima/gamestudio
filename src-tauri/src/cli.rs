@@ -46,14 +46,22 @@ Agents
                                              lance un agent : nouveau worktree (--branch), dossier courant (--here)
                                              ou, par défaut, dépôt principal
   studio sessions                            les sessions du projet et ce qu'elles font
+  studio wait [<session>…] [--timeout <s>]   attend qu'une de ces sessions finisse son tour, attende ou s'arrête
+                                             (par défaut : les agents que tu as lancés ; 540 s au plus)
+  studio peek <session> [--lines <n>]        la fin de son écran (60 lignes par défaut)
+  studio send <session> <texte>              lui écrit, comme au clavier, et valide
+  studio stop <session>                      l'arrête
   studio sync                                synchronise les données avec GitHub maintenant
-  studio guide setup                         la marche à suivre pour configurer un jeu (pour un agent)
+  studio guide setup|orchestrate             la marche à suivre (pour un agent) : configurer un jeu, ou orchestrer
+                                             des agents sur sa roadmap
 
   Le projet se déduit du dossier courant (dépôt ou worktree) ; sinon --project <nom|clé>.
-  --json donne la réponse brute. Un texte « - » (--body -, --goal -, --vision -) se lit sur l'entrée standard.
+  --json donne la réponse brute. Un texte « - » (--body -, --goal -, --vision -, send … -) se lit sur l'entrée
+  standard. Un agent ne pilote (send, stop) que les sessions qu'il a lancées.
 ";
 
 const SETUP_GUIDE: &str = include_str!("guide_setup.md");
+const ORCHESTRATE_GUIDE: &str = include_str!("guide_orchestrate.md");
 
 const SWITCHES: [&str; 6] = ["--all", "--json", "--here", "--dry-run", "--help", "-h"];
 
@@ -113,6 +121,12 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
         }
     }
     Ok(args)
+}
+
+/// The agent session running this command, if any. A person in one of the app's terminals counts as no one.
+fn caller() -> Option<String> {
+    let shell = std::env::var("STUDIO_AGENT").is_ok_and(|a| a == "shell");
+    std::env::var("STUDIO_SESSION").ok().filter(|s| !s.is_empty() && !shell)
 }
 
 fn context(args: &Args) -> Context {
@@ -226,8 +240,25 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
                 place: place.into(),
                 branch,
                 prompt: args.text("--prompt")?.unwrap_or_default(),
+                caller: caller(),
             }
         }
+        ("send", _) => {
+            let text = match args.rest(2, "le texte à envoyer")? {
+                dash if dash == "-" => {
+                    let mut text = String::new();
+                    std::io::stdin().read_to_string(&mut text).map_err(|e| e.to_string())?;
+                    text
+                }
+                words => words,
+            };
+            Request::Send { caller: caller(), session: args.pos(1, "la session")?, text }
+        }
+        ("peek", _) => Request::Peek {
+            session: args.pos(1, "la session")?,
+            lines: args.value("--lines").map(|n| n.parse().map_err(|_| "--lines attend un nombre")).transpose()?.unwrap_or(60),
+        },
+        ("stop", _) => Request::Stop { caller: caller(), session: args.pos(1, "la session")? },
         ("sync", _) => Request::Sync,
         (other, _) => return Err(format!("Commande inconnue : {other}")),
     }))
@@ -248,6 +279,17 @@ fn print_item_line(i: &Value) {
         text(i, "title"),
         if milestone.is_empty() { String::new() } else { format!("  [{milestone}]") }
     );
+}
+
+fn print_session_line(s: &Value) {
+    let item = s.get("item").and_then(Value::as_str).unwrap_or("-");
+    println!("{:<24} {:<8} {:<7} {:<9} {}", text(s, "id"), text(s, "status"), text(s, "agent"), item, text(s, "cwd"));
+    // What it asks while waiting, or what it said last at the end of its turn.
+    if matches!(text(s, "status"), "waiting" | "idle") && !text(s, "message").is_empty() {
+        for line in text(s, "message").lines().filter(|l| !l.trim().is_empty()) {
+            println!("{:<24} {line}", "");
+        }
+    }
 }
 
 fn print_names(label: &str, list: &Value) {
@@ -345,11 +387,11 @@ fn print_result(cmd: &str, v: &Value) {
             if list.is_empty() {
                 println!("Aucune session.");
             }
-            for s in list {
-                let item = s.get("item").and_then(Value::as_str).unwrap_or("-");
-                println!("{:<24} {:<8} {:<7} {:<9} {}", text(s, "id"), text(s, "status"), text(s, "agent"), item, text(s, "cwd"));
-            }
+            list.iter().for_each(print_session_line);
         }
+        "send" => println!("Envoyé à {}", v.as_str().unwrap_or("")),
+        "peek" => println!("{}", v.as_str().unwrap_or("")),
+        "stop" => println!("Session {} arrêtée", v.as_str().unwrap_or("")),
         "sync" => match v.get("error").and_then(Value::as_str) {
             Some(e) => println!("Synchro en erreur : {e}"),
             None => {
@@ -398,12 +440,75 @@ fn hook(raw: &[String]) -> i32 {
     0
 }
 
+/// The sessions `studio wait` watches by default: the working ones `me` launched.
+fn working_children(list: &[Value], me: &str) -> Vec<String> {
+    list.iter()
+        .filter(|s| text(s, "parent") == me && text(s, "status") == "working")
+        .map(|s| text(s, "id").to_string())
+        .collect()
+}
+
+/// Each watched id with its session, `None` once forgotten; settled when one of them no longer works.
+fn watch<'a>(list: &'a [Value], ids: &'a [String]) -> (Vec<(&'a String, Option<&'a Value>)>, bool) {
+    let watched: Vec<_> = ids.iter().map(|id| (id, list.iter().find(|s| text(s, "id") == id))).collect();
+    let settled = watched.iter().any(|(_, s)| s.is_none_or(|s| text(s, "status") != "working"));
+    (watched, settled)
+}
+
+/// `studio wait`: polls until one of the watched sessions stops working (end of its turn, a question, a stop) or
+/// the timeout, then prints them. With no ids, it watches the working sessions the caller launched.
+fn wait(args: &Args) -> Result<(), String> {
+    let timeout = match args.value("--timeout") {
+        Some(t) => t.parse::<u64>().map_err(|_| "--timeout attend un nombre de secondes")?,
+        None => 540,
+    };
+    let req = Request::Sessions { ctx: context(args) };
+    let fetch = || send(&req).map(|v| v.as_array().cloned().unwrap_or_default());
+    let mut list = fetch()?;
+    let ids: Vec<String> = match args.positional.get(1..).filter(|ids| !ids.is_empty()) {
+        Some(ids) => ids.to_vec(),
+        None => {
+            working_children(&list, &caller().ok_or("Précise les sessions à attendre : studio wait <session>…")?)
+        }
+    };
+    if ids.is_empty() {
+        println!("Aucun de tes agents ne travaille.");
+        return Ok(());
+    }
+    let deadline = std::time::Instant::now() + Duration::from_secs(timeout);
+    loop {
+        let (watched, settled) = watch(&list, &ids);
+        let late = std::time::Instant::now() >= deadline;
+        if settled || late {
+            if !settled {
+                println!("Toujours au travail au bout de {timeout} s :");
+            }
+            for (id, s) in watched {
+                match s {
+                    Some(s) => print_session_line(s),
+                    None => println!("{id:<24} n'existe plus"),
+                }
+            }
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_secs(3));
+        list = fetch()?;
+    }
+}
+
 pub fn main(raw: Vec<String>) -> i32 {
     match raw.first().map(String::as_str) {
         Some("hook") => return hook(&raw),
         // Needs no running app: an agent reads it before anything else.
         Some("guide") => {
-            print!("{SETUP_GUIDE}");
+            match raw.get(1).map(String::as_str) {
+                Some("setup") => print!("{SETUP_GUIDE}"),
+                Some("orchestrate") => print!("{ORCHESTRATE_GUIDE}"),
+                _ => {
+                    eprintln!("studio guide setup : configurer un jeu\nstudio guide orchestrate : orchestrer des agents");
+                    return 2;
+                }
+            }
             return 0;
         }
         _ => {}
@@ -415,6 +520,15 @@ pub fn main(raw: Vec<String>) -> i32 {
             return 2;
         }
     };
+    if args.positional.first().is_some_and(|c| c == "wait") && !args.on("--help") && !args.on("-h") {
+        return match wait(&args) {
+            Ok(()) => 0,
+            Err(e) => {
+                eprintln!("{e}");
+                if e.starts_with("Gamestudio n'est pas ouverte") { 3 } else { 1 }
+            }
+        };
+    }
     let req = match request(&args) {
         Ok(Some(r)) => r,
         Ok(None) => {
@@ -481,6 +595,37 @@ mod tests {
         let v = req(&["project", "add", "--name", "Mon jeu", "--key", "JEU"]);
         assert_eq!(v["cmd"], "project-add");
         assert_eq!(v["patch"]["key"], "JEU");
+    }
+
+    #[test]
+    fn driving_sessions() {
+        let v = req(&["send", "fro-1-claude", "Continue,", "c'est", "validé"]);
+        assert_eq!(v["cmd"], "send");
+        assert_eq!(v["session"], "fro-1-claude");
+        assert_eq!(v["text"], "Continue, c'est validé");
+        assert_eq!(req(&["peek", "fro-1-claude"])["lines"], 60);
+        assert_eq!(req(&["peek", "fro-1-claude", "--lines", "20"])["lines"], 20);
+        assert_eq!(req(&["stop", "fro-1-claude"])["cmd"], "stop");
+        assert!(request(&args(&["send", "fro-1-claude"])).is_err());
+        assert!(request(&args(&["peek", "fro-1-claude", "--lines", "beaucoup"])).is_err());
+    }
+
+    #[test]
+    fn wait_watches_the_callers_working_agents() {
+        let session = |id: &str, parent: Option<&str>, status: &str| json!({ "id": id, "parent": parent, "status": status });
+        let mut list = vec![
+            session("fro-1-claude", Some("orch"), "working"),
+            session("fro-2-claude", Some("orch"), "idle"),
+            session("fro-3-claude", None, "working"),
+        ];
+        let ids = working_children(&list, "orch");
+        assert_eq!(ids, ["fro-1-claude"]);
+        assert!(!watch(&list, &ids).1);
+        list[0]["status"] = json!("waiting");
+        assert!(watch(&list, &ids).1);
+        // A session stopped and forgotten meanwhile settles the wait too.
+        assert!(watch(&list[1..], &ids).1);
+        assert!(working_children(&list, "someone-else").is_empty());
     }
 
     #[test]

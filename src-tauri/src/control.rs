@@ -50,8 +50,23 @@ pub enum Request {
     Import { ctx: Context, plan: Value, dry_run: bool },
     Open { id: String },
     Sessions { ctx: Context },
-    /// Starts an agent; `place` is `main`, `worktree` (with `branch`) or `here` (the caller's directory).
-    Start { ctx: Context, item: Option<String>, agent: String, place: String, branch: Option<String>, prompt: String },
+    /// Starts an agent; `place` is `main`, `worktree` (with `branch`) or `here` (the caller's directory). `caller`,
+    /// the agent session running the command if any, becomes the new session's parent.
+    Start {
+        ctx: Context,
+        item: Option<String>,
+        agent: String,
+        place: String,
+        branch: Option<String>,
+        prompt: String,
+        caller: Option<String>,
+    },
+    /// Types `text` into a session and submits it; an agent (`caller`) only reaches the sessions it launched.
+    Send { caller: Option<String>, session: String, text: String },
+    /// The last `lines` lines of a session's screen.
+    Peek { session: String, lines: usize },
+    /// Ends a session; an agent (`caller`) only ends the sessions it launched.
+    Stop { caller: Option<String>, session: String },
     Sync,
     Hook { session: String, event: String, payload: Value },
 }
@@ -250,7 +265,7 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
             let project = resolve_project(&ctx)?;
             Ok(json!(sessions::list().into_iter().filter(|s| s.project == project.id).collect::<Vec<_>>()))
         }
-        Request::Start { ctx, item, agent, place, branch, prompt } => {
+        Request::Start { ctx, item, agent, place, branch, prompt, caller } => {
             let project = match item.as_deref() {
                 Some(id) => store::item(id)?.project,
                 None => resolve_project(&ctx)?.id,
@@ -259,9 +274,22 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
                 "here" => ("path".to_string(), ctx.cwd.clone()),
                 other => (other.to_string(), None),
             };
-            let req = sessions::StartRequest { project, item, agent, place, branch, path, prompt, title: None };
+            let req = sessions::StartRequest { project, item, agent, place, branch, path, prompt, title: None, parent: caller, role: None };
             let session = sessions::start(app, req)?;
-            app.emit("navigate-session", &session.id).map_err(|e| e.to_string())?;
+            // Typed in a terminal: show it. Launched by an agent: leave the user's view alone.
+            if session.parent.is_none() {
+                app.emit("navigate-session", &session.id).map_err(|e| e.to_string())?;
+            }
+            Ok(json!(session))
+        }
+        Request::Send { caller, session, text } => {
+            sessions::send(app, &session, &text, caller.as_deref())?;
+            Ok(json!(session))
+        }
+        Request::Peek { session, lines } => Ok(json!(sessions::peek(&session, lines)?)),
+        Request::Stop { caller, session } => {
+            sessions::driven(&session, caller.as_deref())?;
+            sessions::stop(app, &session)?;
             Ok(json!(session))
         }
         Request::Sync => Ok(json!(sync::now()?)),
