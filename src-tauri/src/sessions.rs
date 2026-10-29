@@ -224,6 +224,9 @@ fn spawn(session: &Session, command: Option<&str>) -> Result<(), String> {
         ("STUDIO_PROJECT", session.project.as_str()),
         ("STUDIO_ITEM", item.as_str()),
         ("STUDIO_AGENT", session.agent.as_str()),
+        // xterm.js reports about a third of the trackpad's wheel motion. Claude Code scrolls 3 lines per report when
+        // it recognizes xterm.js, which it cannot behind tmux: tell it.
+        ("CLAUDE_CODE_SCROLL_SPEED", "3"),
     ];
     tmux::new_session(&session.id, Path::new(&session.cwd), &env, command)
 }

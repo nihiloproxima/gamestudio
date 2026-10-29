@@ -46,7 +46,9 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   the app. Claude runs with `--settings ~/.gamestudio/claude-hooks.json` (hooks call `studio hook …` → status
   working/waiting/idle, Claude session id for `--resume`), Codex with `-c notify=[…]`. Sessions get `STUDIO_SESSION`,
   `STUDIO_PROJECT`, `STUDIO_ITEM`, `STUDIO_AGENT` and `~/.gamestudio/bin` first on PATH. tmux takes a new session's
-  PATH from the creating client, so `tmux::new_session` sets it on the client too.
+  PATH from the creating client, so `tmux::new_session` sets it on the client too. They also get
+  `CLAUDE_CODE_SCROLL_SPEED=3`: Claude Code makes up for xterm.js's damped wheel only when it recognizes xterm.js,
+  which tmux hides from it.
 - **`studio` CLI** (`cli.rs` → socket → `control.rs`): the app binary run with arguments. Same code paths as the UI,
   emits `data-changed` / `sessions-changed` so the UI follows. `studio guide setup` (`guide_setup.md`, no app needed)
   is the procedure an agent follows to set a game up; `studio import plan.json [--dry-run]` (`plan.rs`) writes a
