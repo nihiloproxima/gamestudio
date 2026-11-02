@@ -9,6 +9,7 @@ import {
   type ItemKind,
   type ItemPatch,
   type Milestone,
+  type OrchestrateRequest,
   type Priority,
   type Project,
   type ProjectMeta,
@@ -347,20 +348,19 @@ export async function setupWithClaude(projectId = store.projectId) {
   }
 }
 
-/** The current game's live orchestrator: there is one at most. */
-export const orchestrator = computed(() =>
-  projectSessions.value.find((s) => s.role === "orchestrator" && s.status !== "offline"),
+/** The current game's live orchestrators: several can run, each on its own branch. */
+export const orchestrators = computed(() =>
+  projectSessions.value.filter((s) => s.role === "orchestrator" && s.status !== "offline"),
 );
 
-/** Shows the running orchestrator, or asks how to start one. */
+/** Asks how to start an orchestrator, even when others run. */
 export function openOrchestration() {
-  if (orchestrator.value) go({ name: "agents", session: orchestrator.value.id });
-  else store.orchestrate = true;
+  store.orchestrate = true;
 }
 
-export async function orchestrate(parallel: number, prompt: string) {
+export async function orchestrate(req: Omit<OrchestrateRequest, "project">) {
   try {
-    const session = await api.sessionOrchestrate(store.projectId, parallel, prompt);
+    const session = await api.sessionOrchestrate({ project: store.projectId, ...req });
     await refreshSessions();
     refreshWorktrees();
     store.orchestrate = false;

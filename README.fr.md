@@ -115,10 +115,11 @@ qui changent le plan, montre un aperçu avec `studio import --dry-run`, et n'éc
 
 ### Laisser Claude orchestrer des agents
 
-« Orchestrer » (<kbd>O</kbd>, ou dans la vue des agents) lance Claude Opus en effort `xhigh` dans un worktree à lui,
-sur une nouvelle branche `orchestration-…`, qui suit `studio guide orchestrate`. Il lit la roadmap et le code,
+« Orchestrer » (<kbd>O</kbd>, ou dans la vue des agents) lance Claude Opus (en effort `xhigh`, sauf si tu en choisis
+un autre) dans un worktree à lui, sur une nouvelle branche `orchestration-…`, qui suit `studio guide orchestrate`. Il lit la roadmap et le code,
 prévoit des vagues de tâches et de bugs prévus qui touchent des parties distinctes du jeu, et lance un agent Claude
-sur chacun avec `studio start`, chacun dans un worktree parti de sa branche d'intégration. Il les attend avec
+sur chacun avec `studio start`, chacun dans un worktree parti de sa branche d'intégration, avec l'effort qu'il juge
+nécessaire, ou celui que tu as fixé pour tous. Il les attend avec
 `studio wait`, lit leur écran avec `studio peek`, leur répond avec `studio send`, relit et fusionne chaque branche
 dès qu'elle est prête, résout les conflits, lance les vérifications du projet après chaque fusion, puis publie sa
 branche et ouvre une pull request dont le titre cite chaque tâche. Il ne pousse jamais sur la branche de base.
@@ -159,8 +160,8 @@ clone, `pnpm app:install` construit et installe à partir des sources.
    Si le dépôt a déjà une branche `gamestudio`, ses données reviennent telles quelles.
 2. **Remplis-le.** Laisse Claude le faire à partir du dépôt (« Configurer avec Claude »), ou crée les jalons dans la
    roadmap, les tâches avec <kbd>C</kbd>, les bugs avec <kbd>B</kbd> et les idées avec <kbd>I</kbd>.
-3. **Lance un agent** sur une tâche avec <kbd>A</kbd> : Claude, Codex ou un terminal, dans le dépôt principal ou un
-   nouveau worktree. Quand il a besoin de toi, son point passe à l'ambre.
+3. **Lance un agent** sur une tâche avec <kbd>A</kbd> : Claude (à son effort par défaut ou celui que tu choisis), Codex
+   ou un terminal, dans le dépôt principal ou un nouveau worktree. Quand il a besoin de toi, son point passe à l'ambre.
 4. **Ajoute tes autres jeux** dans les Réglages, « Nouveau jeu », ou avec `studio project add` depuis leur dépôt.
 
 | Raccourci | |

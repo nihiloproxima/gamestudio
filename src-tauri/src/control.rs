@@ -59,6 +59,8 @@ pub enum Request {
         place: String,
         branch: Option<String>,
         prompt: String,
+        /// Claude's effort, `low` to `max`; Claude's default without one.
+        effort: Option<String>,
         caller: Option<String>,
     },
     /// Types `text` into a session and submits it; an agent (`caller`) only reaches the sessions it launched.
@@ -265,7 +267,7 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
             let project = resolve_project(&ctx)?;
             Ok(json!(sessions::list().into_iter().filter(|s| s.project == project.id).collect::<Vec<_>>()))
         }
-        Request::Start { ctx, item, agent, place, branch, prompt, caller } => {
+        Request::Start { ctx, item, agent, place, branch, prompt, effort, caller } => {
             let project = match item.as_deref() {
                 Some(id) => store::item(id)?.project,
                 None => resolve_project(&ctx)?.id,
@@ -274,7 +276,20 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
                 "here" => ("path".to_string(), ctx.cwd.clone()),
                 other => (other.to_string(), None),
             };
-            let req = sessions::StartRequest { project, item, agent, place, branch, path, prompt, title: None, parent: caller, role: None };
+            let req = sessions::StartRequest {
+                project,
+                item,
+                agent,
+                place,
+                branch,
+                path,
+                prompt,
+                title: None,
+                parent: caller,
+                role: None,
+                effort,
+                worker_effort: None,
+            };
             let session = sessions::start(app, req)?;
             // Typed in a terminal: show it. Launched by an agent: leave the user's view alone.
             if session.parent.is_none() {

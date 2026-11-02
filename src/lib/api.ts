@@ -6,6 +6,7 @@ import type {
   ItemPatch,
   Milestone,
   MilestoneMeta,
+  OrchestrateRequest,
   Project,
   ProjectMeta,
   PullRequest,
@@ -43,8 +44,7 @@ const tauriApi = {
   sessionStart: (req: StartRequest) => invoke<Session>("session_start", { req }),
   sessionSetup: (project: string) => invoke<Session>("session_setup", { project }),
   /** Claude Opus delegating the roadmap's parallel work to agents and merging it on an integration branch. */
-  sessionOrchestrate: (project: string, parallel: number, prompt: string) =>
-    invoke<Session>("session_orchestrate", { project, parallel, prompt }),
+  sessionOrchestrate: (req: OrchestrateRequest) => invoke<Session>("session_orchestrate", { req }),
   /** Runs the game from the main checkout or a worktree; again where it runs, restarts it. */
   sessionPlay: (project: string, path?: string) => invoke<Session>("session_play", { project, path }),
   sessionResume: (id: string) => invoke<Session>("session_resume", { id }),

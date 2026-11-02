@@ -46,6 +46,8 @@ Candidats, dans cet ordre :
 
 - ce qui est à trier (`inbox`) et les idées : ils attendent une décision de l'utilisateur ;
 - ce qui est déjà `doing` ou `review`, ou porté par une session (`studio sessions`) ;
+- ce qui touche les fichiers ou les systèmes des agents d'un autre orchestrateur : d'autres peuvent tourner sur le
+  même jeu (`studio sessions`), chacun sur sa branche, et leurs PR se rejoindront sur la branche de base ;
 - ce qui est trop flou pour être fait sans l'utilisateur :
   `studio note <ID> "Laissé de côté par l'orchestrateur : <la question à trancher>"`.
 
@@ -65,10 +67,12 @@ l'utilisateur le lira dans ton terminal.
 Pour chaque élément de la vague, depuis ton worktree :
 
 ```sh
-studio start JEU-12 --branch jeu-12-armures-torse --prompt "…"
+studio start JEU-12 --branch jeu-12-armures-torse --effort high --prompt "…"
 ```
 
 - La branche commence par l'id en minuscules, puis quelques mots : Gamestudio relie ainsi branche, PR et élément.
+- Si un autre orchestrateur a pris l'élément avant toi, `studio start` le refuse (« déjà pris ») : passe au
+  suivant.
 - Le worktree part de ta branche d'intégration, avec tout ce que tu y as déjà fusionné ; la commande d'installation
   du projet y tourne avant l'agent.
 - L'agent reçoit d'office la fiche de l'élément et les règles du travail sans surveillance : trancher seul et le
@@ -76,6 +80,11 @@ studio start JEU-12 --branch jeu-12-armures-torse --prompt "…"
   le périmètre exact (ses fichiers et systèmes, et ceux qu'il ne doit pas toucher parce qu'un autre agent y
   travaille), la commande de vérification, le critère « Fait quand » si la fiche n'en a pas, les décisions déjà
   prises.
+- L'effort de l'agent : si ton premier message te laisse le choisir, passe toujours `--effort`, d'après ce que tu as
+  lu de l'élément et du code. `low` pour un changement mécanique et bien délimité (un texte, une valeur à régler, un
+  renommage), `medium` pour une petite tâche claire, `high` pour une fonctionnalité ou un bug ordinaires, `xhigh` pour
+  ce qui traverse plusieurs systèmes ou un bug difficile à cerner, `max` en dernier recours, pour un élément qu'un
+  agent n'a pas su mener à bien. Si l'utilisateur l'a fixé, ne passe rien : son réglage s'applique de toute façon.
 - L'élément passe en `doing`. Les agents tournent en mode auto : pour le courant, ils n'attendent personne.
 
 ## 4. Suivre

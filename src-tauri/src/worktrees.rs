@@ -141,6 +141,22 @@ pub fn create(project: &store::Project, branch: &str, from: Option<&str>) -> Res
     Ok(path)
 }
 
+/// `base`, or `base-2`, `base-3`… : the first name neither a branch nor a worktree folder uses yet.
+pub fn free_branch(project: &store::Project, base: &str) -> Result<String, String> {
+    let repo = repo_path(project)?;
+    let taken = |b: &str| {
+        let folder = paths::worktrees_dir().join(&project.id).join(store::slugify(&b.replace('/', "-"), 60));
+        folder.exists() || paths::run(paths::git(&repo).args(["rev-parse", "--verify", "-q", &format!("refs/heads/{b}")])).is_ok()
+    };
+    let mut branch = base.to_string();
+    let mut n = 1;
+    while taken(&branch) {
+        n += 1;
+        branch = format!("{base}-{n}");
+    }
+    Ok(branch)
+}
+
 /// Removes a finished worktree, keeping its branch. Refused while it holds uncommitted work or a live session.
 pub fn remove(project_id: &str, path: &str) -> Result<(), String> {
     let project = store::project(project_id)?;

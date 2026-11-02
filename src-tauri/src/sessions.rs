@@ -39,9 +39,17 @@ pub struct Session {
     /// unattended, in Claude's auto mode.
     #[serde(default)]
     pub role: Option<String>,
+    /// Claude's effort (`claude --effort`); Claude's own default without one.
+    #[serde(default)]
+    pub effort: Option<String>,
+    /// An orchestrator's: the effort the user set for all its agents. Without one, it picks each agent's.
+    #[serde(default)]
+    pub worker_effort: Option<String>,
 }
 
 static RECORDS: Mutex<Vec<Session>> = Mutex::new(Vec::new());
+/// Held while an orchestrator's agent claims its item, so two orchestrators cannot both start one on the same item.
+static CLAIM: Mutex<()> = Mutex::new(());
 
 fn file() -> PathBuf {
     paths::studio_dir().join("sessions.json")
@@ -164,6 +172,34 @@ pub struct StartRequest {
     /// Set by `orchestrate`; a worker's role comes from its parent.
     #[serde(skip)]
     pub role: Option<String>,
+    /// Claude only: `low` to `max` (`EFFORTS`); Claude's default without one.
+    #[serde(default)]
+    pub effort: Option<String>,
+    /// Set by `orchestrate`: the effort of every agent the orchestrator launches.
+    #[serde(skip)]
+    pub worker_effort: Option<String>,
+}
+
+/// Claude Code's effort levels, lowest first (`claude --effort`).
+pub const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
+
+fn check_effort(effort: Option<&str>) -> Result<(), String> {
+    match effort {
+        Some(e) if !EFFORTS.contains(&e) => Err(format!("Effort inconnu : {e} (au choix : {})", EFFORTS.join(", "))),
+        _ => Ok(()),
+    }
+}
+
+/// A new session's effort: the one asked for or, for a Claude agent of an orchestrator, the one the user set for all
+/// of them, which wins.
+fn effort(agent: &str, asked: Option<&str>, lead: Option<&Session>) -> Result<Option<String>, String> {
+    let asked = asked.map(str::trim).filter(|e| !e.is_empty());
+    check_effort(asked)?;
+    if asked.is_some() && agent != "claude" {
+        return Err("Seul Claude a un effort à régler".into());
+    }
+    let fixed = lead.and_then(|p| p.worker_effort.as_deref()).filter(|_| agent == "claude");
+    Ok(fixed.or(asked).map(str::to_owned))
 }
 
 /// What the "Configurer avec Claude" session is told; the procedure itself is `studio guide setup`.
@@ -227,22 +263,34 @@ fn unique_id(base: &str) -> String {
 }
 
 /// Unattended sessions run in Claude's auto mode: its classifier, not a person, clears each action. The orchestrator
-/// thinks with the strongest model, at a high effort.
-fn claude_flags(role: Option<&str>) -> &'static str {
-    match role {
-        Some("orchestrator") => " --model opus --effort xhigh --permission-mode auto",
-        Some(_) => " --permission-mode auto",
-        None => "",
+/// thinks with the strongest model.
+fn claude_flags(role: Option<&str>, effort: Option<&str>) -> String {
+    let mut flags = String::new();
+    if role == Some("orchestrator") {
+        flags += " --model opus";
     }
+    if let Some(e) = effort {
+        flags += &format!(" --effort {e}");
+    }
+    if role.is_some() {
+        flags += " --permission-mode auto";
+    }
+    flags
 }
 
 /// The shell command that runs the agent, then leaves a login shell behind when it exits.
-fn agent_command(agent: &str, role: Option<&str>, brief_file: Option<&Path>, resume: Option<&Session>) -> Result<Option<String>, String> {
+fn agent_command(
+    agent: &str,
+    role: Option<&str>,
+    effort: Option<&str>,
+    brief_file: Option<&Path>,
+    resume: Option<&Session>,
+) -> Result<Option<String>, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let brief_arg = brief_file.map(|f| format!(" \"$(cat {})\"", paths::shell_quote(&f.display().to_string()))).unwrap_or_default();
     let run = match agent {
         "claude" => {
-            let settings = format!("--settings {}{}", paths::shell_quote(&hooks_file().display().to_string()), claude_flags(role));
+            let settings = format!("--settings {}{}", paths::shell_quote(&hooks_file().display().to_string()), claude_flags(role, effort));
             match resume {
                 Some(Session { claude_session: Some(id), .. }) => format!("claude {settings} --resume {}", paths::shell_quote(id)),
                 Some(_) => format!("claude {settings} --continue"),
@@ -295,9 +343,17 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
     if lead.is_some() && req.place != "worktree" {
         return Err("Un agent de l'orchestrateur travaille dans son propre worktree : précise --branch".into());
     }
+    // Several orchestrators can run on a project: the first to start an agent on an item gets it.
+    let _claim = lead.map(|_| CLAIM.lock().unwrap_or_else(|e| e.into_inner()));
+    if let (Some(_), Some(i)) = (lead, &item) {
+        if let Some(s) = list().into_iter().find(|s| s.item.as_deref() == Some(i.id.as_str()) && s.status != "offline") {
+            return Err(format!("{} est déjà pris par {} : choisis un autre élément", i.id, s.id));
+        }
+    }
     let role = req.role.clone().or_else(|| lead.map(|_| "worker".to_string()));
+    let effort = effort(&req.agent, req.effort.as_deref(), lead)?;
     // Fail before creating anything the command could not use.
-    agent_command(&req.agent, role.as_deref(), None, None)?;
+    agent_command(&req.agent, role.as_deref(), effort.as_deref(), None, None)?;
 
     let (cwd, branch) = match req.place.as_str() {
         "main" => (worktrees::repo_path(&project)?, None),
@@ -338,7 +394,7 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
         }
         _ => None,
     };
-    let mut command = agent_command(&req.agent, role.as_deref(), brief_file.as_deref(), None)?;
+    let mut command = agent_command(&req.agent, role.as_deref(), effort.as_deref(), brief_file.as_deref(), None)?;
     let fresh_worktree = req.place == "worktree" && !project.meta.setup.trim().is_empty();
     if let (true, Some(c)) = (fresh_worktree, &command) {
         command = Some(format!("{} && {c}", project.meta.setup.trim()));
@@ -361,6 +417,8 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
         message: None,
         parent: parent.map(|p| p.id),
         role,
+        effort,
+        worker_effort: req.worker_effort.clone(),
     };
     spawn(&session, command.as_deref())?;
     {
@@ -394,7 +452,7 @@ pub fn resume(app: &AppHandle, id: &str) -> Result<Session, String> {
     if !Path::new(&session.cwd).is_dir() {
         return Err(format!("{} n'existe plus", session.cwd));
     }
-    let command = agent_command(&session.agent, session.role.as_deref(), None, Some(&session))?;
+    let command = agent_command(&session.agent, session.role.as_deref(), session.effort.as_deref(), None, Some(&session))?;
     spawn(&session, command.as_deref())?;
     // A resumed agent waits at its prompt for what to do next.
     update(id, |s| {
@@ -442,6 +500,8 @@ pub fn play(app: &AppHandle, project: &str, path: Option<&str>) -> Result<Sessio
             message: None,
             parent: None,
             role: None,
+            effort: None,
+            worker_effort: None,
         }
     });
     spawn(&session, Some(&command))?;
@@ -457,13 +517,32 @@ pub fn play(app: &AppHandle, project: &str, path: Option<&str>) -> Result<Sessio
     find(&session.id)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrchestrateRequest {
+    pub project: String,
+    pub parallel: u32,
+    #[serde(default)]
+    pub prompt: String,
+    /// The orchestrator's own effort; `xhigh` without one.
+    #[serde(default)]
+    pub effort: Option<String>,
+    /// The effort of every agent it launches; without one, it picks each agent's.
+    #[serde(default)]
+    pub worker_effort: Option<String>,
+}
+
 /// What the orchestrator is told; the procedure itself is `studio guide orchestrate`.
-fn orchestrate_prompt(project: &store::Project, branch: &str, parallel: u32, instructions: &str) -> String {
+fn orchestrate_prompt(project: &store::Project, branch: &str, parallel: u32, worker_effort: Option<&str>, instructions: &str) -> String {
     let mut text = format!(
         "Tu orchestres le travail sur {} en autonomie. Lance d'abord `studio guide orchestrate` et suis-le jusqu'au \
          bout. Ta branche d'intégration est {branch} ; au plus {parallel} agents en parallèle.",
         project.meta.name
     );
+    text += &match worker_effort {
+        Some(e) => format!(" Tes agents tournent en effort {e}, réglé par l'utilisateur : `--effort` n'y change rien."),
+        None => " Tu choisis l'effort de chaque agent (`studio start --effort`), selon son élément.".into(),
+    };
     if !instructions.trim().is_empty() {
         text += &format!("\n\nConsigne de l'utilisateur, qui prime sur le guide :\n{}", instructions.trim());
     }
@@ -471,28 +550,30 @@ fn orchestrate_prompt(project: &store::Project, branch: &str, parallel: u32, ins
 }
 
 /// Starts a project's orchestrator: Claude in a worktree of its own, on a new integration branch, where it merges
-/// the work of the agents it launches. One at a time per project, or two would pick the same items.
-pub fn orchestrate(app: &AppHandle, project: &str, parallel: u32, instructions: &str) -> Result<Session, String> {
+/// the work of the agents it launches. Several can run on a project: each has its own branch, and an item goes to the
+/// first one to start an agent on it (`start`).
+pub fn orchestrate(app: &AppHandle, req: OrchestrateRequest) -> Result<Session, String> {
+    let parallel = req.parallel;
     if !(1..=8).contains(&parallel) {
         return Err(format!("Entre 1 et 8 agents en parallèle, pas {parallel}"));
     }
-    let project = store::project(project)?;
-    let live = list().into_iter().find(|s| s.project == project.id && s.role.as_deref() == Some("orchestrator") && s.status != "offline");
-    if let Some(s) = live {
-        return Err(format!("Un orchestrateur tourne déjà sur {} : {}", project.meta.name, s.id));
-    }
-    let branch = format!("orchestration-{}", paths::local_stamp().replace(' ', "-").replace(':', ""));
+    let worker_effort = req.worker_effort.filter(|e| !e.trim().is_empty());
+    check_effort(worker_effort.as_deref())?;
+    let project = store::project(&req.project)?;
+    let branch = worktrees::free_branch(&project, &format!("orchestration-{}", paths::local_stamp().replace(' ', "-").replace(':', "")))?;
     let req = StartRequest {
         project: project.id.clone(),
         item: None,
         agent: "claude".into(),
         place: "worktree".into(),
-        prompt: orchestrate_prompt(&project, &branch, parallel, instructions),
+        prompt: orchestrate_prompt(&project, &branch, parallel, worker_effort.as_deref(), &req.prompt),
         branch: Some(branch),
         path: None,
         title: Some("Orchestration".into()),
         parent: None,
         role: Some("orchestrator".into()),
+        effort: Some(req.effort.unwrap_or_else(|| "xhigh".into())),
+        worker_effort,
     };
     start(app, req)
 }
@@ -634,13 +715,49 @@ mod tests {
 
     #[test]
     fn unattended_sessions_run_in_auto_mode() {
-        assert_eq!(claude_flags(None), "");
-        assert_eq!(claude_flags(Some("worker")), " --permission-mode auto");
-        assert!(claude_flags(Some("orchestrator")).contains("--model opus --effort xhigh"));
+        assert_eq!(claude_flags(None, None), "");
+        assert_eq!(claude_flags(None, Some("low")), " --effort low");
+        assert_eq!(claude_flags(Some("worker"), None), " --permission-mode auto");
+        assert_eq!(claude_flags(Some("orchestrator"), Some("xhigh")), " --model opus --effort xhigh --permission-mode auto");
         let (project, _) = fixtures();
-        let prompt = orchestrate_prompt(&project, "orchestration-2026-10-29-1432", 3, "Seulement les bugs.");
+        let prompt = orchestrate_prompt(&project, "orchestration-2026-10-29-1432", 3, None, "Seulement les bugs.");
         assert!(prompt.contains("`studio guide orchestrate`"));
         assert!(prompt.contains("orchestration-2026-10-29-1432 ; au plus 3 agents"));
+        assert!(prompt.contains("Tu choisis l'effort de chaque agent"));
         assert!(prompt.ends_with("Seulement les bugs."));
+        let fixed = orchestrate_prompt(&project, "orchestration-2026-10-29-1432", 3, Some("high"), "");
+        assert!(fixed.contains("Tes agents tournent en effort high"));
+    }
+
+    #[test]
+    fn the_user_sets_the_effort_of_an_orchestration() {
+        let lead = |worker_effort: Option<&str>| Session {
+            id: "orchestration".into(),
+            project: "frostholm".into(),
+            item: None,
+            title: "Orchestration".into(),
+            agent: "claude".into(),
+            cwd: "/tmp".into(),
+            branch: None,
+            created: String::new(),
+            claude_session: None,
+            status: "working".into(),
+            status_at: String::new(),
+            message: None,
+            parent: None,
+            role: Some("orchestrator".into()),
+            effort: Some("xhigh".into()),
+            worker_effort: worker_effort.map(str::to_owned),
+        };
+        assert_eq!(effort("claude", None, None), Ok(None));
+        assert_eq!(effort("claude", Some(" "), None), Ok(None));
+        assert_eq!(effort("claude", Some("medium"), None), Ok(Some("medium".into())));
+        assert!(effort("claude", Some("ultra"), None).is_err());
+        assert!(effort("codex", Some("high"), None).is_err());
+        // Left to the orchestrator, or set by the user for all its agents.
+        assert_eq!(effort("claude", Some("low"), Some(&lead(None))), Ok(Some("low".into())));
+        assert_eq!(effort("claude", Some("low"), Some(&lead(Some("high")))), Ok(Some("high".into())));
+        assert_eq!(effort("claude", None, Some(&lead(Some("high")))), Ok(Some("high".into())));
+        assert_eq!(effort("codex", None, Some(&lead(Some("high")))), Ok(None));
     }
 }

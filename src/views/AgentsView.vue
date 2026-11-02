@@ -27,7 +27,6 @@ import {
   itemsById,
   now,
   openOrchestration,
-  orchestrator,
   playGame,
   project,
   projectSessions,
@@ -99,8 +98,8 @@ const STATUS_TEXT = { waiting: "attend ta réponse", working: "travaille", idle:
 const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal", game: "Le jeu" };
 
 function agentName(s: Session) {
-  if (s.role === "orchestrator") return "L'orchestrateur";
-  return s.role === "worker" ? `${AGENT_NAME[s.agent]}, pour l'orchestrateur,` : AGENT_NAME[s.agent];
+  const name = (s.role === "orchestrator" ? "L'orchestrateur" : AGENT_NAME[s.agent]) + (s.effort ? ` en effort ${s.effort}` : "");
+  return s.role === "worker" ? `${name}, pour l'orchestrateur,` : name;
 }
 
 function statusText(s: Session) {
@@ -114,7 +113,7 @@ function statusText(s: Session) {
       <h1>Agents</h1>
       <span class="muted">{{ projectSessions.filter((s) => s.status !== "offline").length }} session(s) en cours</span>
       <span class="spacer" />
-      <button class="btn btn-quiet" @click="openOrchestration()"><Network />{{ orchestrator ? "Orchestrateur" : "Orchestrer" }}</button>
+      <button class="btn btn-quiet" @click="openOrchestration()"><Network />Orchestrer</button>
       <button class="btn btn-solid" @click="store.launch = {}"><Play />Lancer un agent</button>
     </header>
 

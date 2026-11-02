@@ -22,7 +22,7 @@ import ProjectGlyph from "./ProjectGlyph.vue";
 import StatusIcon from "./StatusIcon.vue";
 import StatusDot from "./StatusDot.vue";
 import type { Item, Project, Session } from "../domain/types";
-import { go, isOpen, openOrchestration, orchestrator, playGame, project, setupWithClaude, store, switchProject, syncNow } from "../state/store";
+import { go, isOpen, openOrchestration, playGame, project, setupWithClaude, store, switchProject, syncNow } from "../state/store";
 
 /** One box to reach anything: items by id or words, views, actions, other games, running sessions. */
 type Entry =
@@ -47,7 +47,7 @@ const actions = computed<Entry[]>(() => [
   { kind: "action", id: "new-bug", label: "Signaler un bug", icon: Bug, hint: "B", run: () => (store.capture = { kind: "bug" }) },
   { kind: "action", id: "new-idea", label: "Noter une idée", icon: Lightbulb, hint: "I", run: () => (store.capture = { kind: "idea" }) },
   { kind: "action", id: "new-session", label: "Lancer un agent", icon: Play, hint: "A", run: () => (store.launch = {}) },
-  { kind: "action", id: "orchestrate", label: orchestrator.value ? "Voir l'orchestrateur" : "Orchestrer des agents", icon: Network, hint: "O", run: openOrchestration },
+  { kind: "action", id: "orchestrate", label: "Orchestrer des agents", icon: Network, hint: "O", run: openOrchestration },
   { kind: "action", id: "play", label: "Lancer le jeu", icon: Gamepad2, hint: "P", run: () => playGame() },
   { kind: "action", id: "go-overview", label: "Aller à la vue d'ensemble", icon: LayoutDashboard, hint: "⌘1", run: () => go({ name: "overview" }) },
   { kind: "action", id: "go-roadmap", label: "Aller à la roadmap", icon: Map, hint: "⌘2", run: () => go({ name: "roadmap" }) },

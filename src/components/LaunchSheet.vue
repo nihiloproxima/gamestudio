@@ -5,7 +5,7 @@ import Modal from "./Modal.vue";
 import PickMenu from "./PickMenu.vue";
 import AgentIcon from "./AgentIcon.vue";
 import StatusIcon from "./StatusIcon.vue";
-import { AGENTS, type AgentKind, type StartRequest } from "../domain/types";
+import { AGENTS, EFFORTS, type AgentKind, type Effort, type StartRequest } from "../domain/types";
 import { byPriority, isOpen, itemsById, project, refreshWorktrees, startSession, store } from "../state/store";
 import { slugify, tilde } from "../lib/format";
 
@@ -19,6 +19,9 @@ const branch = ref("");
 const path = ref(store.launch?.path ?? "");
 const prompt = ref("");
 const busy = ref(false);
+/** Claude's effort; null keeps Claude's own default. */
+const savedEffort = localStorage.getItem("launch.effort") as Effort | null;
+const effort = ref<Effort | null>(savedEffort && EFFORTS.includes(savedEffort) ? savedEffort : null);
 
 const item = computed(() => (itemId.value === NONE ? undefined : itemsById.value.get(itemId.value)));
 const itemOptions = computed(() => [
@@ -56,6 +59,7 @@ async function launch() {
   if (!ready.value || busy.value) return;
   busy.value = true;
   localStorage.setItem("launch.agent", agent.value);
+  if (agent.value === "claude") localStorage.setItem("launch.effort", effort.value ?? "");
   localStorage.setItem(`launch.place.${store.projectId}`, place.value === "path" ? "main" : place.value);
   await startSession({
     project: store.projectId,
@@ -65,6 +69,7 @@ async function launch() {
     branch: place.value === "worktree" ? branch.value.trim() : undefined,
     path: place.value === "path" ? path.value : undefined,
     prompt: prompt.value,
+    effort: agent.value === "claude" ? (effort.value ?? undefined) : undefined,
   });
   busy.value = false;
 }
@@ -101,6 +106,14 @@ async function launch() {
             <button v-for="a in AGENTS" :key="a.id" type="button" :class="{ on: agent === a.id }" @click="agent = a.id">
               <AgentIcon :agent="a.id" :size="13" />{{ a.label }}
             </button>
+          </div>
+        </div>
+
+        <div v-if="agent === 'claude'" class="row">
+          <span class="label">Effort</span>
+          <div class="segmented">
+            <button type="button" :class="{ on: !effort }" @click="effort = null">Par défaut</button>
+            <button v-for="e in EFFORTS" :key="e" type="button" :class="{ on: effort === e }" @click="effort = e">{{ e }}</button>
           </div>
         </div>
 
@@ -190,7 +203,7 @@ header h2 {
   gap: 12px;
 }
 .row .label {
-  width: 36px;
+  width: 40px;
   margin: 0;
 }
 .pick-item {

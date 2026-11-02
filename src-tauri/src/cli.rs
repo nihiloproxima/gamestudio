@@ -43,8 +43,9 @@ Roadmap et projet
 
 Agents
   studio start [<ID>] [--agent claude|codex|shell] [--branch <nom> | --here] [--prompt <texte>]
+              [--effort low|medium|high|xhigh|max]
                                              lance un agent : nouveau worktree (--branch), dossier courant (--here)
-                                             ou, par défaut, dépôt principal
+                                             ou, par défaut, dépôt principal ; --effort règle celui de Claude
   studio sessions                            les sessions du projet et ce qu'elles font
   studio wait [<session>…] [--timeout <s>]   attend qu'une de ces sessions finisse son tour, attende ou s'arrête
                                              (par défaut : les agents que tu as lancés ; 540 s au plus)
@@ -240,6 +241,7 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
                 place: place.into(),
                 branch,
                 prompt: args.text("--prompt")?.unwrap_or_default(),
+                effort: args.value("--effort"),
                 caller: caller(),
             }
         }
@@ -381,7 +383,13 @@ fn print_result(cmd: &str, v: &Value) {
                 println!("Par statut : {}", counts.join(", "));
             }
         }
-        "start" => println!("Session {} lancée dans {} (tmux -L studio attach -t {})", text(v, "id"), text(v, "cwd"), text(v, "id")),
+        "start" => {
+            let effort = match text(v, "effort") {
+                "" => String::new(),
+                e => format!(", en effort {e}"),
+            };
+            println!("Session {} lancée dans {}{effort} (tmux -L studio attach -t {})", text(v, "id"), text(v, "cwd"), text(v, "id"));
+        }
         "sessions" => {
             let list = v.as_array().map(Vec::as_slice).unwrap_or_default();
             if list.is_empty() {

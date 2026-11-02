@@ -109,10 +109,11 @@ the plan, shows a preview with `studio import --dry-run`, and writes nothing unt
 
 ### Let Claude orchestrate agents
 
-"Orchestrer" (<kbd>O</kbd>, or in the agents view) starts Claude Opus at `xhigh` effort in a worktree of its own, on
-a new `orchestration-…` branch, following `studio guide orchestrate`. It reads the roadmap and the code, plans waves
+"Orchestrer" (<kbd>O</kbd>, or in the agents view) starts Claude Opus (`xhigh` effort unless you pick another) in a
+worktree of its own, on a new `orchestration-…` branch, following `studio guide orchestrate`. It reads the roadmap and the code, plans waves
 of planned tasks and bugs that touch separate parts of the game, and starts a Claude agent on each one with
-`studio start`, each in a worktree branched from its integration branch. It waits on them with `studio wait`, reads
+`studio start`, each in a worktree branched from its integration branch, at the effort it judges the task needs, or
+at the one you set for all of them. It waits on them with `studio wait`, reads
 their screen with `studio peek`, answers them with `studio send`, reviews and merges each branch as it lands,
 resolves the conflicts, runs the project's checks after every merge, then pushes its branch and opens a pull request
 whose title names every task. It never pushes to the base branch.
@@ -152,8 +153,8 @@ builds and installs from source instead.
    If the repo already has a `gamestudio` branch, its data comes back as it is.
 2. **Fill it.** Let Claude do it from the repo ("Configurer avec Claude"), or create milestones in the roadmap,
    tasks with <kbd>C</kbd>, bugs with <kbd>B</kbd> and ideas with <kbd>I</kbd>.
-3. **Start an agent** on a task with <kbd>A</kbd>: Claude, Codex or a terminal, in the main checkout or a new
-   worktree. When it needs you, its dot turns amber.
+3. **Start an agent** on a task with <kbd>A</kbd>: Claude (at its default effort or the one you pick), Codex or a
+   terminal, in the main checkout or a new worktree. When it needs you, its dot turns amber.
 4. **Add your other games** in Settings, "Nouveau jeu", or with `studio project add` from their repo.
 
 | Shortcut | |

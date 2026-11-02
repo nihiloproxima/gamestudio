@@ -2,12 +2,20 @@
 import { computed, ref } from "vue";
 import { Network } from "lucide-vue-next";
 import Modal from "./Modal.vue";
-import { activeMilestone, isOpen, orchestrate, project, store } from "../state/store";
+import { EFFORTS, type Effort } from "../domain/types";
+import { activeMilestone, go, isOpen, orchestrate, orchestrators, project, store } from "../state/store";
 
 /** Starts the orchestrator: Claude Opus picks what can move in parallel, delegates it to agents and merges it. */
 const CHOICES = [2, 3, 4, 5];
 const saved = Number(localStorage.getItem("orchestrate.parallel"));
 const parallel = ref(CHOICES.includes(saved) ? saved : 3);
+const savedEffort = (key: string) => {
+  const e = localStorage.getItem(key) as Effort | null;
+  return e && EFFORTS.includes(e) ? e : null;
+};
+const effort = ref<Effort>(savedEffort("orchestrate.effort") ?? "xhigh");
+/** Null: the orchestrator sets each agent's effort from its item. */
+const workerEffort = ref<Effort | null>(savedEffort("orchestrate.workerEffort"));
 const prompt = ref("");
 const busy = ref(false);
 
@@ -20,7 +28,9 @@ async function launch() {
   if (!project.value?.present || busy.value) return;
   busy.value = true;
   localStorage.setItem("orchestrate.parallel", String(parallel.value));
-  await orchestrate(parallel.value, prompt.value);
+  localStorage.setItem("orchestrate.effort", effort.value);
+  localStorage.setItem("orchestrate.workerEffort", workerEffort.value ?? "");
+  await orchestrate({ parallel: parallel.value, prompt: prompt.value, effort: effort.value, workerEffort: workerEffort.value });
   busy.value = false;
 }
 </script>
@@ -35,7 +45,7 @@ async function launch() {
 
       <div class="body">
         <p class="intro">
-          Claude Opus, en effort xhigh, prend dans la roadmap ce qui peut avancer en parallèle et le confie à des agents,
+          Claude Opus prend dans la roadmap ce qui peut avancer en parallèle et le confie à des agents,
           chacun dans son worktree. Il relit leur travail, le fusionne sur une branche d'intégration, résout les conflits,
           puis ouvre une PR vers <span class="code">{{ base }}</span>, sans jamais y pousser.
         </p>
@@ -50,6 +60,19 @@ async function launch() {
             <button v-for="n in CHOICES" :key="n" type="button" :class="{ on: parallel === n }" @click="parallel = n">{{ n }}</button>
           </div>
         </div>
+        <div class="row">
+          <span class="label">Effort de l'orchestrateur</span>
+          <div class="segmented">
+            <button v-for="e in EFFORTS" :key="e" type="button" :class="{ on: effort === e }" @click="effort = e">{{ e }}</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">Effort des agents</span>
+          <div class="segmented">
+            <button type="button" :class="{ on: !workerEffort }" @click="workerEffort = null">Claude décide</button>
+            <button v-for="e in EFFORTS" :key="e" type="button" :class="{ on: workerEffort === e }" @click="workerEffort = e">{{ e }}</button>
+          </div>
+        </div>
 
         <p class="pool">
           <Network :size="14" />
@@ -57,6 +80,15 @@ async function launch() {
             {{ todo.length }} tâche{{ todo.length > 1 ? "s" : "" }} ou bug{{ todo.length > 1 ? "s" : "" }} à faire<template v-if="activeMilestone">, dont {{ inMilestone }} dans {{ activeMilestone.title }}</template>.
           </span>
           <span v-else>Rien à faire pour l'instant : il piochera dans le backlog du jalon en cours.</span>
+        </p>
+
+        <p v-if="orchestrators.length" class="pool">
+          <Network :size="14" />
+          <span>
+            Déjà {{ orchestrators.length > 1 ? `${orchestrators.length} orchestrateurs` : "un orchestrateur" }} en cours
+            (<template v-for="(s, i) in orchestrators" :key="s.id"><template v-if="i">, </template><a href="#" class="code" @click.prevent="store.orchestrate = false; go({ name: 'agents', session: s.id })">{{ s.id }}</a></template>) :
+            celui-ci prendra d'autres éléments. Une consigne de périmètre évite qu'ils touchent les mêmes fichiers.
+          </span>
         </p>
 
         <textarea
@@ -107,6 +139,7 @@ header h2 {
   gap: 12px;
 }
 .row .label {
+  width: 150px;
   margin: 0;
 }
 .pool {

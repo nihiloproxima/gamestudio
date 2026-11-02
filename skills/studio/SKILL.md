@@ -41,6 +41,7 @@ studio milestone add "Démo Steam" --status planned --target 2026-12-01 --goal "
 studio milestone set <id> --status active
 studio project set --assets assets,content --base origin/main --setup "pnpm install" --vision -
 studio start JEU-12 --branch jeu-12-armures   # starts a Claude session on it, in a new worktree
+studio start JEU-12 --branch jeu-12-armures --effort high   # same, at a given effort (low, medium, high, xhigh, max)
 ```
 
 ## Orchestrating

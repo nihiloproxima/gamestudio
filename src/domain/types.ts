@@ -81,6 +81,10 @@ export const STATUS_PRIORITY: AgentStatus[] = ["waiting", "working", "idle", "of
 /** `game` is the game itself, running (`sessionPlay`): not an agent one can start from the launch sheet. */
 export type AgentKind = "claude" | "codex" | "shell" | "game";
 
+/** Claude Code's effort levels, lowest first (`claude --effort`). */
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+export const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
+
 export interface Session {
   /** Also its tmux session name. */
   id: string;
@@ -99,6 +103,10 @@ export interface Session {
   parent: string | null;
   /** Unattended sessions: the orchestrator, and the agents it launched. */
   role: "orchestrator" | "worker" | null;
+  /** Claude's effort; Claude's own default when null. */
+  effort: Effort | null;
+  /** An orchestrator's: the effort the user set for all its agents; null when it picks each agent's. */
+  workerEffort: Effort | null;
 }
 
 export interface StartRequest {
@@ -109,6 +117,18 @@ export interface StartRequest {
   branch?: string;
   path?: string;
   prompt?: string;
+  /** Claude only. */
+  effort?: Effort;
+}
+
+export interface OrchestrateRequest {
+  project: string;
+  parallel: number;
+  prompt: string;
+  /** The orchestrator's own; xhigh by default. */
+  effort: Effort;
+  /** Every agent's; null leaves each one to the orchestrator. */
+  workerEffort: Effort | null;
 }
 
 export interface Worktree {
