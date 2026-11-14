@@ -22,7 +22,10 @@ const options = computed(() => {
     case "kind":
       return KINDS;
     default:
-      return [{ id: NONE, label: "Sans jalon" }, ...store.milestones.map((m) => ({ id: m.id, label: m.title }))];
+      return [{ id: NONE, label: "Sans jalon" }, ...store.milestones
+          .filter((m) => m.status !== "done" || m.id === props.item.milestone)
+          .map((m) => ({ id: m.id, label: m.title })),
+      ];
   }
 });
 

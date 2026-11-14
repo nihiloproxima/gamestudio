@@ -8,6 +8,11 @@ import { byPriority, confirmAsk, deleteMilestone, now, progressOf, project, save
 import { dateLabel, daysUntil } from "../lib/format";
 
 const open = reactive(new Set<string>());
+
+// Reached milestones stay out of the way unless asked for.
+const showDone = ref(false);
+const doneCount = computed(() => store.milestones.filter((m) => m.status === "done").length);
+const shown = computed(() => (showDone.value ? store.milestones : store.milestones.filter((m) => m.status !== "done" || editing.value === m.id)));
 const editing = ref<string | null>(null);
 const draft = reactive({ title: "", status: "planned" as MilestoneStatus, target: "", goal: "" });
 
@@ -38,12 +43,13 @@ async function remove(m: Milestone) {
   editing.value = null;
 }
 
-/** Swaps orders with the neighbour; orders are rewritten densely so ties never stick. */
+/** Swaps orders with the shown neighbour; orders are rewritten densely so ties never stick. */
 async function shift(m: Milestone, dir: -1 | 1) {
+  const k = shown.value.findIndex((x) => x.id === m.id) + dir;
+  if (k < 0 || k >= shown.value.length) return;
   const list = [...store.milestones];
   const i = list.findIndex((x) => x.id === m.id);
-  const j = i + dir;
-  if (j < 0 || j >= list.length) return;
+  const j = list.findIndex((x) => x.id === shown.value[k].id);
   [list[i], list[j]] = [list[j], list[i]];
   for (const [order, x] of list.entries()) {
     if (x.order !== order) await saveMilestone(x.id, { ...x, order });
@@ -125,8 +131,13 @@ async function saveVision() {
         <button class="btn btn-quiet" @click="edit(null)"><Plus />Premier jalon</button>
       </div>
 
+      <button v-if="doneCount" class="btn btn-ghost btn-sm done-toggle" @click="showDone = !showDone">
+        <component :is="showDone ? ChevronDown : ChevronRight" :size="14" />
+        {{ showDone ? "Masquer" : "Afficher" }} {{ doneCount > 1 ? `les ${doneCount} jalons atteints` : "le jalon atteint" }}
+      </button>
+
       <ol class="track">
-        <li v-for="(m, index) in store.milestones" :key="m.id" class="ms" :class="m.status">
+        <li v-for="(m, index) in shown" :key="m.id" class="ms" :class="m.status">
           <span class="node" />
           <form v-if="editing === m.id" class="ms-form" @submit.prevent="save(m)">
             <input v-model="draft.title" class="field title-field" placeholder="Nom du jalon" />
@@ -156,7 +167,7 @@ async function saveVision() {
                 <button v-if="m.status === 'planned'" class="btn btn-ghost btn-sm" @click="setStatus(m, 'active')">Démarrer</button>
                 <button v-if="m.status === 'active'" class="btn btn-ghost btn-sm" @click="setStatus(m, 'done')">Marquer atteint</button>
                 <button class="btn btn-ghost btn-sm btn-icon" title="Monter" :disabled="index === 0" @click="shift(m, -1)"><ArrowUp /></button>
-                <button class="btn btn-ghost btn-sm btn-icon" title="Descendre" :disabled="index === store.milestones.length - 1" @click="shift(m, 1)"><ArrowDown /></button>
+                <button class="btn btn-ghost btn-sm btn-icon" title="Descendre" :disabled="index === shown.length - 1" @click="shift(m, 1)"><ArrowDown /></button>
                 <button class="btn btn-ghost btn-sm btn-icon" title="Modifier" @click="edit(m)"><Pencil /></button>
               </div>
             </header>
@@ -414,6 +425,10 @@ async function saveVision() {
 .date .field {
   width: 150px;
   color-scheme: dark;
+}
+.done-toggle {
+  margin: 0 0 14px 22px;
+  color: var(--subtext);
 }
 .unplanned {
   margin-left: 34px;

@@ -16,7 +16,10 @@ const NONE = "__none__";
 const milestone = ref(store.capture?.milestone ?? NONE);
 const input = ref<HTMLInputElement>();
 
-const milestoneOptions = computed(() => [{ id: NONE, label: "Sans jalon" }, ...store.milestones.map((m) => ({ id: m.id, label: m.title }))]);
+const milestoneOptions = computed(() => [
+  { id: NONE, label: "Sans jalon" },
+  ...store.milestones.filter((m) => m.status !== "done" || m.id === milestone.value).map((m) => ({ id: m.id, label: m.title })),
+]);
 const milestoneLabel = computed(() => milestoneOptions.value.find((o) => o.id === milestone.value)?.label);
 
 onMounted(() => input.value?.focus());
