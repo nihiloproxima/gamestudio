@@ -43,15 +43,18 @@ Roadmap et projet
 
 Agents
   studio start [<ID>] [--agent claude|codex|shell] [--branch <nom> | --here] [--prompt <texte>]
-              [--effort low|medium|high|xhigh|max]
+              [--preset <mission>] [--effort low|medium|high|xhigh|max]
                                              lance un agent : nouveau worktree (--branch), dossier courant (--here)
-                                             ou, par défaut, dépôt principal ; --effort règle celui de Claude
+                                             ou, par défaut, dépôt principal ; --effort règle celui de Claude. Sans
+                                             élément, --preset groom|brainstorm donne à la session libre une mission —
+                                             trier la roadmap, brainstormer — sans worktree, en mode auto
   studio sessions                            les sessions du projet et ce qu'elles font
   studio wait [<session>…] [--timeout <s>]   attend qu'une de ces sessions finisse son tour, attende ou s'arrête
                                              (par défaut : les agents que tu as lancés ; 540 s au plus)
   studio peek <session> [--lines <n>]        la fin de son écran (60 lignes par défaut)
   studio send <session> <texte>              lui écrit, comme au clavier, et valide
   studio stop <session>                      l'arrête
+  studio title <texte>                       (pour un agent) nomme ce sur quoi tu travailles, affiché dans l'app
   studio sync                                synchronise les données avec GitHub maintenant
   studio guide setup|orchestrate             la marche à suivre (pour un agent) : configurer un jeu, ou orchestrer
                                              des agents sur sa roadmap
@@ -241,6 +244,7 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
                 place: place.into(),
                 branch,
                 prompt: args.text("--prompt")?.unwrap_or_default(),
+                preset: args.value("--preset"),
                 effort: args.value("--effort"),
                 caller: caller(),
             }
@@ -261,6 +265,10 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
             lines: args.value("--lines").map(|n| n.parse().map_err(|_| "--lines attend un nombre")).transpose()?.unwrap_or(60),
         },
         ("stop", _) => Request::Stop { caller: caller(), session: args.pos(1, "la session")? },
+        ("title", _) => Request::Title {
+            session: caller().ok_or("studio title se lance depuis une session d'agent")?,
+            title: args.rest(1, "le titre")?,
+        },
         ("sync", _) => Request::Sync,
         (other, _) => return Err(format!("Commande inconnue : {other}")),
     }))
@@ -400,6 +408,7 @@ fn print_result(cmd: &str, v: &Value) {
         "send" => println!("Envoyé à {}", v.as_str().unwrap_or("")),
         "peek" => println!("{}", v.as_str().unwrap_or("")),
         "stop" => println!("Session {} arrêtée", v.as_str().unwrap_or("")),
+        "title" => println!("Titre de {} changé", v.as_str().unwrap_or("")),
         "sync" => match v.get("error").and_then(Value::as_str) {
             Some(e) => println!("Synchro en erreur : {e}"),
             None => {

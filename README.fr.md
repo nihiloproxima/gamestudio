@@ -120,7 +120,7 @@ un autre) dans un worktree à lui, sur une nouvelle branche `orchestration-…`,
 prévoit des vagues de tâches et de bugs prévus qui touchent des parties distinctes du jeu, et lance un agent Claude
 sur chacun avec `studio start`, chacun dans un worktree parti de sa branche d'intégration, avec l'effort qu'il juge
 nécessaire, ou celui que tu as fixé pour tous. Il les attend avec
-`studio wait`, lit leur écran avec `studio peek`, leur répond avec `studio send`, relit et fusionne chaque branche
+`studio wait`, lit leur écran avec `studio peek`, leur répond avec `studio send`, nomme son sujet avec `studio title`, relit et fusionne chaque branche
 dès qu'elle est prête, résout les conflits, lance les vérifications du projet après chaque fusion, puis publie sa
 branche et ouvre une pull request dont le titre cite chaque tâche. Il ne pousse jamais sur la branche de base.
 
@@ -130,6 +130,21 @@ pas : celui qui finit son tour attend l'orchestrateur, pas toi. Seule une permis
 fait passer un agent en ambre, et toi seul peux y répondre : un agent ne pilote que ceux qu'il a lancés, et ne répond
 jamais à une permission. Ce qui demande ta décision (une idée, une tâche floue, un choix de design) est laissé de
 côté avec une note. Les tâches fusionnées restent en revue jusqu'à ce que tu les aies essayées.
+
+### Une session libre pour trier la roadmap
+
+« Lancer un agent » (<kbd>A</kbd>) accepte aussi de partir sans tâche, dans le dépôt principal — pas de worktree, pas
+de branche. Choisis une mission et la session libre part avec son propre brief, en mode auto de Claude, et touche au
+suivi, pas au code :
+
+- **Trier et organiser** déblaie l'inbox : réécrit les titres et fiches vagues, découpe ce qui est trop gros pour un
+  seul agent, fusionne les doublons, règle kinds, priorités, jalons et statuts, et te laisse une note pour chaque
+  décision qui revient à toi.
+- **Brainstormer** lit la vision et la roadmap, creuse quelques pistes concrètes avec leur coût et leur risque,
+  garde les bonnes en `studio idea`, et te ramène les arbitrages.
+
+Sans mission, une consigne libre reste ce qu'elle était : Claude dans le dépôt principal, qui attend ce que tu lui
+demandes. Depuis un terminal, les mêmes missions sont `studio start --preset groom` et `--preset brainstorm`.
 
 ### Mises à jour
 

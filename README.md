@@ -114,7 +114,7 @@ worktree of its own, on a new `orchestration-…` branch, following `studio guid
 of planned tasks and bugs that touch separate parts of the game, and starts a Claude agent on each one with
 `studio start`, each in a worktree branched from its integration branch, at the effort it judges the task needs, or
 at the one you set for all of them. It waits on them with `studio wait`, reads
-their screen with `studio peek`, answers them with `studio send`, reviews and merges each branch as it lands,
+their screen with `studio peek`, answers them with `studio send`, names what it works on with `studio title`, reviews and merges each branch as it lands,
 resolves the conflicts, runs the project's checks after every merge, then pushes its branch and opens a pull request
 whose title names every task. It never pushes to the base branch.
 
@@ -124,6 +124,21 @@ its turn waits on the orchestrator, not on you. Only a permission Claude will no
 and only you can answer it: an agent drives only the agents it launched, and never answers a permission. Anything
 that needs your decision (an idea, a vague task, a design call) is left aside with a note. Merged tasks stay in
 review until you have tried them.
+
+### Free sessions: groom and brainstorm
+
+"Lancer un agent" (<kbd>A</kbd>) also starts a session without a task, in the main checkout — no worktree, no branch.
+Pick a mission and the free session leaves with a brief of its own, in Claude's auto mode, touching the tracker, not
+the code:
+
+- **Trier et organiser** clears the inbox: rewrites vague titles and bodies, splits what is too big for one agent,
+  merges duplicates, sets kinds, priorities, milestones and statuses, and leaves you a note for every decision that
+  is yours to make.
+- **Brainstormer** reads the vision and the roadmap, digs a few concrete ideas with their cost and risk, keeps the
+  good ones as `studio idea`, and brings the calls back to you.
+
+Without a mission, a free prompt stays what it was: Claude in the main checkout, waiting for what you ask. From a
+terminal, the same missions are `studio start --preset groom` and `studio start --preset brainstorm`.
 
 ### Updates
 

@@ -145,6 +145,7 @@ pub async fn session_setup(app: AppHandle, project: String) -> Result<sessions::
             branch: None,
             path: None,
             prompt: sessions::SETUP_PROMPT.into(),
+            preset: None,
             title: Some("Configuration de Gamestudio".into()),
             parent: None,
             role: None,

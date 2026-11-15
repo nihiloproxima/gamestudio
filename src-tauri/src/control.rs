@@ -59,12 +59,16 @@ pub enum Request {
         place: String,
         branch: Option<String>,
         prompt: String,
+        /// A free session's mission, without an item: `groom` or `brainstorm`.
+        preset: Option<String>,
         /// Claude's effort, `low` to `max`; Claude's default without one.
         effort: Option<String>,
         caller: Option<String>,
     },
     /// Types `text` into a session and submits it; an agent (`caller`) only reaches the sessions it launched.
     Send { caller: Option<String>, session: String, text: String },
+    /// Renames the calling agent's own session: what it works on.
+    Title { session: String, title: String },
     /// The last `lines` lines of a session's screen.
     Peek { session: String, lines: usize },
     /// Ends a session; an agent (`caller`) only ends the sessions it launched.
@@ -267,7 +271,7 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
             let project = resolve_project(&ctx)?;
             Ok(json!(sessions::list().into_iter().filter(|s| s.project == project.id).collect::<Vec<_>>()))
         }
-        Request::Start { ctx, item, agent, place, branch, prompt, effort, caller } => {
+        Request::Start { ctx, item, agent, place, branch, prompt, preset, effort, caller } => {
             let project = match item.as_deref() {
                 Some(id) => store::item(id)?.project,
                 None => resolve_project(&ctx)?.id,
@@ -284,6 +288,7 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
                 branch,
                 path,
                 prompt,
+                preset,
                 title: None,
                 parent: caller,
                 role: None,
@@ -299,6 +304,10 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
         }
         Request::Send { caller, session, text } => {
             sessions::send(app, &session, &text, caller.as_deref())?;
+            Ok(json!(session))
+        }
+        Request::Title { session, title } => {
+            sessions::retitle(app, &session, &title)?;
             Ok(json!(session))
         }
         Request::Peek { session, lines } => Ok(json!(sessions::peek(&session, lines)?)),

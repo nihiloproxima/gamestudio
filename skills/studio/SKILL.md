@@ -42,6 +42,7 @@ studio milestone set <id> --status active
 studio project set --assets assets,content --base origin/main --setup "pnpm install" --vision -
 studio start JEU-12 --branch jeu-12-armures   # starts a Claude session on it, in a new worktree
 studio start JEU-12 --branch jeu-12-armures --effort high   # same, at a given effort (low, medium, high, xhigh, max)
+studio start --preset groom                # a free session, no item, no worktree: it grooms the roadmap, auto mode
 ```
 
 ## Orchestrating
@@ -54,6 +55,7 @@ studio wait                           # until one of your agents ends its turn, 
 studio peek fro-12-claude             # the end of its screen
 studio send fro-12-claude "…"         # typed into it and submitted; refused while it waits on the user
 studio stop fro-12-claude
+studio title "Combat : armures et Nova (FRO-1, FRO-2)"   # what you work on, shown above your agents in the app
 ```
 
 ## Setting a game up

@@ -163,6 +163,9 @@ pub struct StartRequest {
     pub path: Option<String>,
     #[serde(default)]
     pub prompt: String,
+    /// A free session's mission, without an item: `groom` (organize the roadmap) or `brainstorm`.
+    #[serde(default)]
+    pub preset: Option<String>,
     /// Shown instead of the item's title or the branch.
     #[serde(default)]
     pub title: Option<String>,
@@ -218,7 +221,37 @@ répondra à tes questions, et c'est lui qui relira et fusionnera ton travail.\n
 - Pour finir : `studio note {id} \"…\"` résume ce qui est fait et comment le vérifier, puis `studio status {id} review`.\n\
 - Bloqué pour de bon : explique pourquoi dans une note et arrête-toi sans passer en review.\n";
 
-fn brief(project: &store::Project, item: Option<&store::Item>, prompt: &str, worker: bool) -> Option<String> {
+/// Told to a free session that grooms the roadmap: organize with `studio`, without writing code.
+const GROOM_RULES: &str = "---\nTu tries et organises la roadmap de {name} : clarifier, regrouper, prioriser — sans \
+écrire de code.\n\
+- Pars du tour d'horizon : `studio items --all`, `studio milestones`, `studio sessions`, et la vision dans `studio \
+project`.\n\
+- L'inbox d'abord : clarifie titre et description de chaque élément à trier, puis `studio set <id>` (kind, priorité, \
+jalon, labels) et `studio status <id> todo`, `backlog` ou `dropped`.\n\
+- Découpe ce qui est trop gros pour un seul agent, fusionne les doublons, rédige les fiches vagues ; chaque décision \
+devient `studio note <id> \"Décision : …\"`.\n\
+- Ce qui surgit en route devient `studio idea \"…\"` ou `studio bug \"…\"`, sans t'y attarder.\n\
+- Un choix qui revient à l'utilisateur (périmètre, design, arbitrage) : pose-le dans une note et laisse l'élément à \
+trier plutôt que de trancher.\n\
+- Termine par un bilan : ce qui a changé, ce qui l'attend.\n";
+
+/// Told to a free session that brainstorms: propose and confront, without writing code or reshaping the roadmap.
+const BRAINSTORM_RULES: &str = "---\nTu brainstormes sur {name} : proposer, confronter, creuser — sans écrire de code, \
+sans réorganiser la roadmap.\n\
+- Pars de la vision (`studio project`) et de ce qui existe (`studio items --all`, `studio milestones`).\n\
+- Creuse peu de pistes plutôt que d'en effleurer beaucoup : ce qu'elles changent au jeu, ce qu'elles coûtent, où elles \
+risquent de casser.\n\
+- Une piste qui tient devient `studio idea \"…\"` avec le raisonnement en corps de fiche ; les autres disparaissent.\n\
+- Les arbitrages reviennent à l'utilisateur : pose-les franchement, propose, ne décide pas à sa place.\n\
+- Termine par un bilan : les pistes proposées, celle que tu recommandes et pourquoi.\n";
+
+fn brief(
+    project: &store::Project,
+    item: Option<&store::Item>,
+    prompt: &str,
+    worker: bool,
+    preset: Option<&str>,
+) -> Option<String> {
     let mut text = String::new();
     if let Some(item) = item {
         let kind = match item.meta.kind.as_str() {
@@ -244,6 +277,8 @@ fn brief(project: &store::Project, item: Option<&store::Item>, prompt: &str, wor
              - `studio idea \"…\"` note une idée hors sujet sans t'y attarder.\n",
             id = item.id
         ),
+        None if preset == Some("groom") => text += &GROOM_RULES.replace("{name}", &project.meta.name),
+        None if preset == Some("brainstorm") => text += &BRAINSTORM_RULES.replace("{name}", &project.meta.name),
         None => {}
     }
     (!text.trim().is_empty()).then_some(text)
@@ -350,7 +385,23 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
             return Err(format!("{} est déjà pris par {} : choisis un autre élément", i.id, s.id));
         }
     }
-    let role = req.role.clone().or_else(|| lead.map(|_| "worker".to_string()));
+    // A free session can take a mission — grooming the roadmap, brainstorming — instead of an item: it works in the
+    // main checkout, auto mode, and touches the tracker, not the code.
+    let preset = req.preset.as_deref().map(str::trim).filter(|p| !p.is_empty());
+    match preset {
+        None | Some("groom") | Some("brainstorm") => {}
+        Some(other) => return Err(format!("Mission inconnue : {other} (au choix : groom, brainstorm)")),
+    }
+    if preset.is_some() && (item.is_some() || req.agent == "shell") {
+        return Err("Une mission (groom, brainstorm) se donne à une session libre, sans élément".into());
+    }
+    if preset.is_some() && req.place == "worktree" {
+        return Err("Une session de mission n'a pas besoin de worktree : elle travaille sur la roadmap, pas le code".into());
+    }
+    let role = req.role
+        .clone()
+        .or_else(|| lead.map(|_| "worker".to_string()))
+        .or_else(|| preset.map(str::to_string));
     let effort = effort(&req.agent, req.effort.as_deref(), lead)?;
     // Fail before creating anything the command could not use.
     agent_command(&req.agent, role.as_deref(), effort.as_deref(), None, None)?;
@@ -383,10 +434,12 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
         _ if req.title.is_some() => req.title.clone().unwrap_or_default(),
         (Some(i), _) => i.meta.title.clone(),
         (None, Some(b)) => b.clone(),
+        (None, None) if preset == Some("groom") => "Trier et organiser".into(),
+        (None, None) if preset == Some("brainstorm") => "Brainstorm".into(),
         (None, None) => if req.agent == "shell" { "Terminal".into() } else { format!("{} libre", req.agent) },
     };
 
-    let brief_file = match brief(&project, item.as_ref(), &req.prompt, role.as_deref() == Some("worker")) {
+    let brief_file = match brief(&project, item.as_ref(), &req.prompt, role.as_deref() == Some("worker"), preset) {
         Some(text) if req.agent != "shell" => {
             let f = paths::studio_dir().join("briefs").join(format!("{id}.md"));
             paths::write_atomic(&f, &text)?;
@@ -569,6 +622,7 @@ pub fn orchestrate(app: &AppHandle, req: OrchestrateRequest) -> Result<Session, 
         prompt: orchestrate_prompt(&project, &branch, parallel, worker_effort.as_deref(), &req.prompt),
         branch: Some(branch),
         path: None,
+        preset: None,
         title: Some("Orchestration".into()),
         parent: None,
         role: Some("orchestrator".into()),
@@ -597,6 +651,19 @@ pub fn send(app: &AppHandle, id: &str, text: &str, caller: Option<&str>) -> Resu
         });
         changed(app);
     }
+    Ok(())
+}
+
+/// Names what a session works on, as an orchestrator does once it has picked its work, and again as it moves on.
+pub fn retitle(app: &AppHandle, id: &str, title: &str) -> Result<(), String> {
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    if title.is_empty() {
+        return Err("Le titre est vide".into());
+    }
+    if !update(id, |s| s.title = title) {
+        return Err(format!("Session inconnue : {id}"));
+    }
+    changed(app);
     Ok(())
 }
 
@@ -703,14 +770,27 @@ mod tests {
     #[test]
     fn workers_get_the_unattended_rules() {
         let (project, item) = fixtures();
-        let worker = brief(&project, Some(&item), "Seulement le torse.", true).unwrap();
+        let worker = brief(&project, Some(&item), "Seulement le torse.", true, None).unwrap();
         assert!(worker.contains("Fait quand le torse se porte.\n\nSeulement le torse."));
         assert!(worker.contains("`studio status FRO-1 review`"));
         assert!(worker.contains("Ne pousse pas"));
-        let attended = brief(&project, Some(&item), "", false).unwrap();
+        let attended = brief(&project, Some(&item), "", false, None).unwrap();
         assert!(attended.contains("`done` une fois vérifié"));
         assert!(!attended.contains("sans surveillance"));
-        assert!(brief(&project, None, " ", false).is_none());
+        assert!(brief(&project, None, " ", false, None).is_none());
+    }
+
+    #[test]
+    fn free_sessions_get_a_mission() {
+        let (project, _) = fixtures();
+        let groom = brief(&project, None, "", false, Some("groom")).unwrap();
+        assert!(groom.contains("roadmap de Frostholm"));
+        assert!(groom.contains("`studio items --all`"));
+        assert!(groom.contains("sans écrire de code"));
+        let brainstorm = brief(&project, None, "Le combat.", false, Some("brainstorm")).unwrap();
+        assert!(brainstorm.contains("Le combat.\n\n---\n"));
+        assert!(brainstorm.contains("`studio idea"));
+        assert!(brainstorm.contains("ne décide pas à sa place"));
     }
 
     #[test]
@@ -718,6 +798,7 @@ mod tests {
         assert_eq!(claude_flags(None, None), "");
         assert_eq!(claude_flags(None, Some("low")), " --effort low");
         assert_eq!(claude_flags(Some("worker"), None), " --permission-mode auto");
+        assert_eq!(claude_flags(Some("groom"), None), " --permission-mode auto");
         assert_eq!(claude_flags(Some("orchestrator"), Some("xhigh")), " --model opus --effort xhigh --permission-mode auto");
         let (project, _) = fixtures();
         let prompt = orchestrate_prompt(&project, "orchestration-2026-10-29-1432", 3, None, "Seulement les bugs.");

@@ -62,6 +62,15 @@ quels systèmes il modifie. Puis forme des vagues :
 Écris ton plan dans la conversation (vagues, éléments, fichiers attendus, ce que tu écartes et pourquoi) :
 l'utilisateur le lira dans ton terminal.
 
+Puis donne un titre à ton orchestration : c'est ce que l'utilisateur voit d'elle dans l'app, au-dessus de tes agents.
+Quelques mots qui disent le sujet, suivis des ids en cours :
+
+```sh
+studio title "Refonte du combat : armures et Nova (JEU-12, JEU-15)"
+```
+
+Change-le dès que le sujet évolue : une nouvelle vague, un élément laissé de côté, le bilan final.
+
 ## 3. Lancer les agents
 
 Pour chaque élément de la vague, depuis ton worktree :
@@ -153,8 +162,8 @@ L'élément reste en `review` : c'est l'utilisateur qui le passera en `done`, ap
 ## 6. Vague suivante
 
 Quand une vague est fusionnée, réévalue les candidats (des éléments ont pu être ajoutés, d'autres débloqués) et lance
-la suivante. Sans consigne contraire, arrête-toi quand il ne reste rien d'éligible, ou après une douzaine d'éléments
-fusionnés : au-delà, la PR devient trop lourde à relire.
+la suivante, avec un titre à jour (`studio title`). Sans consigne contraire, arrête-toi quand il ne reste rien
+d'éligible, ou après une douzaine d'éléments fusionnés : au-delà, la PR devient trop lourde à relire.
 
 ## 7. Laisser de côté
 

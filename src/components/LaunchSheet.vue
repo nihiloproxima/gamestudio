@@ -11,10 +11,18 @@ import { slugify, tilde } from "../lib/format";
 
 /** Starts an agent (or a plain terminal) on an item, in the main checkout, a new worktree or an existing one. */
 const NONE = "__none__";
+/** Missions a free session can take instead of an item, in the main checkout, in auto mode. */
+const PRESETS = [
+  { id: "groom", label: "Trier et organiser" },
+  { id: "brainstorm", label: "Brainstormer" },
+] as const;
+type Preset = (typeof PRESETS)[number]["id"];
 const itemId = ref(store.launch?.item ?? NONE);
 const agent = ref<AgentKind>((localStorage.getItem("launch.agent") as AgentKind) ?? "claude");
 type Place = StartRequest["place"];
 const place = ref<Place>(store.launch?.path ? "path" : ((localStorage.getItem(`launch.place.${store.projectId}`) as Place) ?? "main"));
+const savedPreset = localStorage.getItem("launch.preset") as Preset | null;
+const preset = ref<Preset | null>(savedPreset && PRESETS.some((p) => p.id === savedPreset) ? savedPreset : null);
 const branch = ref("");
 const path = ref(store.launch?.path ?? "");
 const prompt = ref("");
@@ -43,6 +51,27 @@ function suggestBranch() {
 }
 watch(itemId, suggestBranch, { immediate: true });
 
+/** A mission belongs to a session without an item; it works on the roadmap, in the main checkout. */
+watch(itemId, (id) => {
+  if (id !== NONE) preset.value = null;
+});
+watch(preset, (p) => {
+  if (p) place.value = "main";
+});
+watch(agent, (a) => {
+  if (a === "shell") preset.value = null;
+});
+
+const promptPlaceholder = computed(() =>
+  item.value
+    ? "Consigne en plus de la fiche (facultatif)"
+    : preset.value === "groom"
+      ? "En plus de la mission (facultatif) : où commencer, quoi laisser de côté"
+      : preset.value === "brainstorm"
+        ? "Le sujet du brainstorm (facultatif)"
+        : "Ce que l'agent doit faire (facultatif)",
+);
+
 onMounted(() => {
   if (store.worktrees === null) refreshWorktrees();
   if (place.value === "path" && !path.value) path.value = others.value[0]?.path ?? "";
@@ -61,6 +90,7 @@ async function launch() {
   localStorage.setItem("launch.agent", agent.value);
   if (agent.value === "claude") localStorage.setItem("launch.effort", effort.value ?? "");
   localStorage.setItem(`launch.place.${store.projectId}`, place.value === "path" ? "main" : place.value);
+  localStorage.setItem("launch.preset", !item.value ? (preset.value ?? "") : "");
   await startSession({
     project: store.projectId,
     item: item.value?.id,
@@ -69,6 +99,7 @@ async function launch() {
     branch: place.value === "worktree" ? branch.value.trim() : undefined,
     path: place.value === "path" ? path.value : undefined,
     prompt: prompt.value,
+    preset: !item.value ? preset.value : null,
     effort: agent.value === "claude" ? (effort.value ?? undefined) : undefined,
   });
   busy.value = false;
@@ -98,6 +129,16 @@ async function launch() {
               </button>
             </template>
           </PickMenu>
+        </div>
+
+        <div v-if="!item && agent !== 'shell'" class="row">
+          <span class="label">Mission</span>
+          <div class="segmented">
+            <button type="button" :class="{ on: !preset }" @click="preset = null">Libre</button>
+            <button v-for="p in PRESETS" :key="p.id" type="button" :class="{ on: preset === p.id }" @click="preset = p.id">
+              {{ p.label }}
+            </button>
+          </div>
         </div>
 
         <div class="row">
@@ -163,7 +204,7 @@ async function launch() {
           v-model="prompt"
           class="field"
           rows="3"
-          :placeholder="item ? 'Consigne en plus de la fiche (facultatif)' : 'Ce que l\'agent doit faire (facultatif)'"
+          :placeholder="promptPlaceholder"
         />
         <p v-if="!project?.present" class="error">{{ project?.name }} n'est pas cloné dans {{ project?.path }} sur ce Mac : règle le chemin dans les réglages.</p>
       </div>

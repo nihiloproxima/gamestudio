@@ -112,7 +112,7 @@ const items: Item[] = [
 ];
 
 const sessions: Session[] = [
-  { id: "orchestration-0930", project: "frostholm", item: null, title: "Orchestration", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator", effort: "xhigh", workerEffort: null },
+  { id: "orchestration-0930", project: "frostholm", item: null, title: "Jalon 3 : armures et Nova (FRO-1, FRO-2)", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator", effort: "xhigh", workerEffort: null },
   { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless", parent: "orchestration-0930", role: "worker", effort: "high", workerEffort: null },
   { id: "fro-2-claude", project: "frostholm", item: "FRO-2", title: "Bâton de feu : la Nova repousse trop loin", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", created: ago(40), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: "orchestration-0930", role: "worker", effort: "medium", workerEffort: null },
   { id: "fro-4-codex", project: "frostholm", item: "FRO-4", title: "Talents : afficher le coût en points", agent: "codex", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(240), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: null, role: null, effort: null, workerEffort: null },
@@ -212,6 +212,7 @@ function transcript(s: Session | undefined): string {
           `           FRO-2 Nova ${dim("(combat, bâton de feu)")}`,
           `  ${dim("Vague 2")}  FRO-3 Arbre du bâton de glace ${dim("(après FRO-4, même arbre de talents)")}`,
           `  ${dim("Écarté")}   FRO-8 ${dim("le crash est encore à trier")}`,
+          dot(`studio title "Jalon 3 : armures et Nova (FRO-1, FRO-2)"`),
           dot(`studio start FRO-1 --branch fro-1-armures --prompt "…"`),
           dot(`studio start FRO-2 --branch fro-2-nova-recul --prompt "…"`),
           dot("studio wait"),
@@ -333,7 +334,15 @@ export const demoApi: Api = {
       id: `${(req.item ?? req.project).toLowerCase()}-${req.agent}-${sessions.length}`,
       project: req.project,
       item: req.item ?? null,
-      title: it?.title ?? (req.agent === "shell" ? "Terminal" : `${req.agent} libre`),
+      title:
+        it?.title ??
+        (req.preset === "groom"
+          ? "Trier et organiser"
+          : req.preset === "brainstorm"
+            ? "Brainstorm"
+            : req.agent === "shell"
+              ? "Terminal"
+              : `${req.agent} libre`),
       agent: req.agent,
       cwd: req.path ?? "/Users/ada/code/frostholm",
       branch: req.branch ?? null,
@@ -343,7 +352,7 @@ export const demoApi: Api = {
       statusAt: new Date().toISOString(),
       message: null,
       parent: null,
-      role: null,
+      role: req.preset ?? null,
       effort: req.agent === "claude" ? (req.effort ?? null) : null,
       workerEffort: null,
     };

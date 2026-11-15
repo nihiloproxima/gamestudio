@@ -101,8 +101,8 @@ export interface Session {
   message: string | null;
   /** The session that launched this one with `studio start`. */
   parent: string | null;
-  /** Unattended sessions: the orchestrator, and the agents it launched. */
-  role: "orchestrator" | "worker" | null;
+  /** Unattended sessions: the orchestrator, and the agents it launched. A free session's mission otherwise. */
+  role: "orchestrator" | "worker" | "groom" | "brainstorm" | null;
   /** Claude's effort; Claude's own default when null. */
   effort: Effort | null;
   /** An orchestrator's: the effort the user set for all its agents; null when it picks each agent's. */
@@ -117,6 +117,8 @@ export interface StartRequest {
   branch?: string;
   path?: string;
   prompt?: string;
+  /** A free session's mission, no item: groom the roadmap or brainstorm it. */
+  preset?: "groom" | "brainstorm" | null;
   /** Claude only. */
   effort?: Effort;
 }
