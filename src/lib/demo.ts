@@ -1,5 +1,6 @@
 /** Browser mode (`pnpm dev` without Tauri): an in-memory studio, so the UI can be designed and checked anywhere. */
 import type {
+  AgentOptions,
   Asset,
   Item,
   ItemDraft,
@@ -112,13 +113,13 @@ const items: Item[] = [
 ];
 
 const sessions: Session[] = [
-  { id: "orchestration-0930", project: "frostholm", item: null, title: "Jalon 3 : armures et Nova (FRO-1, FRO-2)", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator", effort: "xhigh", workerEffort: null },
-  { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless", parent: "orchestration-0930", role: "worker", effort: "high", workerEffort: null },
-  { id: "fro-2-claude", project: "frostholm", item: "FRO-2", title: "Bâton de feu : la Nova repousse trop loin", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", created: ago(40), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: "orchestration-0930", role: "worker", effort: "medium", workerEffort: null },
-  { id: "fro-4-codex", project: "frostholm", item: "FRO-4", title: "Talents : afficher le coût en points", agent: "codex", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(240), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: null, role: null, effort: null, workerEffort: null },
-  { id: "frostholm-shell", project: "frostholm", item: null, title: "Terminal", agent: "shell", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(30), claudeSession: null, status: "idle", statusAt: ago(30), message: null, parent: null, role: null, effort: null, workerEffort: null },
-  { id: "sfx-forge", project: "frostholm", item: null, title: "Sons de la forge (ElevenLabs)", agent: "claude", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(20), claudeSession: null, status: "working", statusAt: ago(2), message: null, parent: null, role: null, effort: null, workerEffort: null },
-  { id: "emb-1-claude", project: "ember", item: "EMB-1", title: "Le récit du troisième talisman", agent: "claude", cwd: "/Users/ada/code/ember", branch: null, created: ago(50), claudeSession: null, status: "waiting", statusAt: ago(12), message: "J'ai fini le premier jet du récit, tu veux le relire ?", parent: null, role: null, effort: null, workerEffort: null },
+  { id: "orchestration-0930", project: "frostholm", item: null, title: "Jalon 3 : armures et Nova (FRO-1, FRO-2)", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator", effort: "xhigh", workerEffort: null, model: null },
+  { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless", parent: "orchestration-0930", role: "worker", effort: "high", workerEffort: null, model: null },
+  { id: "fro-2-claude", project: "frostholm", item: "FRO-2", title: "Bâton de feu : la Nova repousse trop loin", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", created: ago(40), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: "orchestration-0930", role: "worker", effort: "medium", workerEffort: null, model: null },
+  { id: "fro-4-codex", project: "frostholm", item: "FRO-4", title: "Talents : afficher le coût en points", agent: "codex", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(240), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: null, role: null, effort: null, workerEffort: null, model: null },
+  { id: "frostholm-shell", project: "frostholm", item: null, title: "Terminal", agent: "shell", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(30), claudeSession: null, status: "idle", statusAt: ago(30), message: null, parent: null, role: null, effort: null, workerEffort: null, model: null },
+  { id: "sfx-forge", project: "frostholm", item: null, title: "Sons de la forge (ElevenLabs)", agent: "claude", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(20), claudeSession: null, status: "working", statusAt: ago(2), message: null, parent: null, role: null, effort: null, workerEffort: null, model: null },
+  { id: "emb-1-claude", project: "ember", item: "EMB-1", title: "Le récit du troisième talisman", agent: "claude", cwd: "/Users/ada/code/ember", branch: null, created: ago(50), claudeSession: null, status: "waiting", statusAt: ago(12), message: "J'ai fini le premier jet du récit, tu veux le relire ?", parent: null, role: null, effort: null, workerEffort: null, model: null },
 ];
 
 const worktrees: Record<string, Worktree[]> = {
@@ -353,12 +354,44 @@ export const demoApi: Api = {
       message: null,
       parent: null,
       role: req.preset ?? null,
-      effort: req.agent === "claude" ? (req.effort ?? null) : null,
+      model: req.model ?? null,
+      effort: req.effort ?? null,
       workerEffort: null,
     };
     sessions.push(s);
     if (it && ["inbox", "backlog", "todo"].includes(it.status)) it.status = "doing";
     return wait(s, 500);
+  },
+  agentOptions(agent) {
+    const claude = ["low", "medium", "high", "xhigh", "max"];
+    const options: AgentOptions =
+      agent === "claude"
+        ? {
+            models: [
+              { id: "opus", label: "Opus", efforts: claude },
+              { id: "sonnet", label: "Sonnet", efforts: claude },
+              { id: "haiku", label: "Haiku", efforts: claude },
+            ],
+            efforts: claude,
+          }
+        : agent === "codex"
+          ? {
+              models: [
+                { id: "gpt-6.1-sol", label: "GPT-6.1-Sol", efforts: ["low", "medium", "high", "xhigh", "max", "ultra"] },
+                { id: "gpt-6-luna", label: "GPT-6-Luna", efforts: ["low", "medium", "high", "xhigh", "max"] },
+              ],
+              efforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+            }
+          : agent === "opencode"
+            ? {
+                models: [
+                  { id: "opencode-go/minimax-m3.1-flash", label: "MiniMax M3.1 Flash (opencode-go)", efforts: ["low", "medium", "high", "xhigh", "max"] },
+                  { id: "opencode-go/glm-5", label: "GLM 5 (opencode-go)", efforts: [] },
+                ],
+                efforts: [],
+              }
+            : { models: [], efforts: [] };
+    return wait(options);
   },
   sessionSetup(project) {
     return demoApi.sessionStart({ project, agent: "claude", place: "main" }).then((s) => {
@@ -401,6 +434,7 @@ export const demoApi: Api = {
       message: null,
       parent: null,
       role: null,
+      model: null,
       effort: null,
       workerEffort: null,
     };

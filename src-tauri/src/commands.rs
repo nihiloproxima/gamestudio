@@ -3,7 +3,7 @@
 
 use tauri::AppHandle;
 
-use crate::{assets, control, github, paths, sessions, store, sync, update, worktrees};
+use crate::{assets, control, github, models, paths, sessions, store, sync, update, worktrees};
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())?
@@ -133,6 +133,12 @@ pub async fn session_start(app: AppHandle, req: sessions::StartRequest) -> Resul
     blocking(move || sessions::start(&app, req)).await
 }
 
+/// The models an agent can run, and the efforts they take (`models::options`).
+#[tauri::command]
+pub async fn agent_options(agent: String) -> Result<models::Options, String> {
+    blocking(move || models::options(&agent)).await
+}
+
 /// A Claude session in the project's repo that scans it, asks the user, and fills Gamestudio once they agree.
 #[tauri::command]
 pub async fn session_setup(app: AppHandle, project: String) -> Result<sessions::Session, String> {
@@ -149,6 +155,7 @@ pub async fn session_setup(app: AppHandle, project: String) -> Result<sessions::
             title: Some("Configuration de Gamestudio".into()),
             parent: None,
             role: None,
+            model: None,
             effort: None,
             worker_effort: None,
         };

@@ -42,10 +42,12 @@ Roadmap et projet
                                              ce qui serait créé sans rien écrire. Format : studio guide setup
 
 Agents
-  studio start [<ID>] [--agent claude|codex|shell] [--branch <nom> | --here] [--prompt <texte>]
-              [--preset <mission>] [--effort low|medium|high|xhigh|max]
+  studio start [<ID>] [--agent claude|codex|opencode|shell] [--branch <nom> | --here] [--prompt <texte>]
+              [--preset <mission>] [--model <modèle>] [--effort <niveau>]
                                              lance un agent : nouveau worktree (--branch), dossier courant (--here)
-                                             ou, par défaut, dépôt principal ; --effort règle celui de Claude. Sans
+                                             ou, par défaut, dépôt principal ; --model et --effort choisissent
+                                             parmi ceux de l'agent (Claude : opus, sonnet, haiku ; Codex : ceux de
+                                             `codex debug models`). Sans
                                              élément, --preset groom|brainstorm donne à la session libre une mission —
                                              trier la roadmap, brainstormer — sans worktree, en mode auto
   studio sessions                            les sessions du projet et ce qu'elles font
@@ -245,6 +247,7 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
                 branch,
                 prompt: args.text("--prompt")?.unwrap_or_default(),
                 preset: args.value("--preset"),
+                model: args.value("--model"),
                 effort: args.value("--effort"),
                 caller: caller(),
             }

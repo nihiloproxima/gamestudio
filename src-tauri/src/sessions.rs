@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::{game, paths, store, tmux, worktrees};
+use crate::{game, models, paths, store, tmux, worktrees};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +18,7 @@ pub struct Session {
     pub project: String,
     pub item: Option<String>,
     pub title: String,
-    /// `claude`, `codex`, `shell`, or `game` (the game running, `play`).
+    /// `claude`, `codex`, `opencode`, `shell`, or `game` (the game running, `play`).
     pub agent: String,
     pub cwd: String,
     pub branch: Option<String>,
@@ -39,7 +39,10 @@ pub struct Session {
     /// unattended, in Claude's auto mode.
     #[serde(default)]
     pub role: Option<String>,
-    /// Claude's effort (`claude --effort`); Claude's own default without one.
+    /// The model the agent runs (`--model`, `-m`); its own default without one.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// The agent's effort (`--effort` for Claude, `model_reasoning_effort` for Codex); its default without one.
     #[serde(default)]
     pub effort: Option<String>,
     /// An orchestrator's: the effort the user set for all its agents. Without one, it picks each agent's.
@@ -150,12 +153,25 @@ pub fn write_hooks() -> Result<(), String> {
     paths::write_atomic(&hooks_file(), &serde_json::to_string_pretty(&settings).unwrap())
 }
 
+fn opencode_config_dir() -> PathBuf {
+    paths::studio_dir().join("opencode")
+}
+
+/// The OpenCode plugin that reports a session's status to the app (`studio hook opencode`). It sits in the config
+/// directory of OpenCode sessions only (`OPENCODE_CONFIG_DIR`), so the user's own OpenCode setup is left alone.
+pub fn write_opencode_plugin() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe = serde_json::to_string(&exe.display().to_string()).map_err(|e| e.to_string())?;
+    let source = include_str!("opencode_plugin.js").replace("__STUDIO_EXE__", &exe);
+    paths::write_atomic(&opencode_config_dir().join("plugins").join("gamestudio.js"), &source)
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartRequest {
     pub project: String,
     pub item: Option<String>,
-    /// `claude`, `codex` or `shell`.
+    /// `claude`, `codex`, `opencode` or `shell`.
     pub agent: String,
     /// `main` (the repo's checkout), `worktree` (new, for `branch`) or `path` (an existing worktree).
     pub place: String,
@@ -175,7 +191,10 @@ pub struct StartRequest {
     /// Set by `orchestrate`; a worker's role comes from its parent.
     #[serde(skip)]
     pub role: Option<String>,
-    /// Claude only: `low` to `max` (`EFFORTS`); Claude's default without one.
+    /// The model, one `models::options` lists for the agent; its default without one.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// An effort the chosen model takes (`models::options`); the agent's default without one.
     #[serde(default)]
     pub effort: Option<String>,
     /// Set by `orchestrate`: the effort of every agent the orchestrator launches.
@@ -193,16 +212,35 @@ fn check_effort(effort: Option<&str>) -> Result<(), String> {
     }
 }
 
-/// A new session's effort: the one asked for or, for a Claude agent of an orchestrator, the one the user set for all
-/// of them, which wins.
-fn effort(agent: &str, asked: Option<&str>, lead: Option<&Session>) -> Result<Option<String>, String> {
+/// A new session's model and effort, checked against what the agent's CLI reports for them. For a Claude agent of an
+/// orchestrator, the effort the user set for all of them wins.
+fn choice(
+    agent: &str,
+    model: Option<&str>,
+    asked: Option<&str>,
+    lead: Option<&Session>,
+) -> Result<(Option<String>, Option<String>), String> {
+    let model = model.map(str::trim).filter(|m| !m.is_empty());
     let asked = asked.map(str::trim).filter(|e| !e.is_empty());
-    check_effort(asked)?;
-    if asked.is_some() && agent != "claude" {
-        return Err("Seul Claude a un effort à régler".into());
-    }
     let fixed = lead.and_then(|p| p.worker_effort.as_deref()).filter(|_| agent == "claude");
-    Ok(fixed.or(asked).map(str::to_owned))
+    let Some(effort) = fixed.or(asked) else {
+        if let Some(m) = model {
+            models::options(agent)?.models.iter().find(|x| x.id == m).ok_or(format!("Modèle inconnu : {m}"))?;
+        }
+        return Ok((model.map(str::to_owned), None));
+    };
+    let options = models::options(agent)?;
+    let efforts = match model {
+        Some(m) => options.models.iter().find(|x| x.id == m).ok_or(format!("Modèle inconnu : {m}"))?.efforts.clone(),
+        None => options.efforts,
+    };
+    if efforts.is_empty() {
+        return Err(format!("{} n'a pas d'effort à régler", model.unwrap_or(agent)));
+    }
+    if !efforts.iter().any(|e| e == effort) {
+        return Err(format!("Effort inconnu : {effort} (au choix : {})", efforts.join(", ")));
+    }
+    Ok((model.map(str::to_owned), Some(effort.to_owned())))
 }
 
 /// What the "Configurer avec Claude" session is told; the procedure itself is `studio guide setup`.
@@ -299,10 +337,12 @@ fn unique_id(base: &str) -> String {
 
 /// Unattended sessions run in Claude's auto mode: its classifier, not a person, clears each action. The orchestrator
 /// thinks with the strongest model.
-fn claude_flags(role: Option<&str>, effort: Option<&str>) -> String {
+fn claude_flags(role: Option<&str>, model: Option<&str>, effort: Option<&str>) -> String {
     let mut flags = String::new();
-    if role == Some("orchestrator") {
-        flags += " --model opus";
+    match (role, model) {
+        (Some("orchestrator"), _) => flags += " --model opus",
+        (_, Some(m)) => flags += &format!(" --model {}", paths::shell_quote(m)),
+        _ => {}
     }
     if let Some(e) = effort {
         flags += &format!(" --effort {e}");
@@ -313,10 +353,23 @@ fn claude_flags(role: Option<&str>, effort: Option<&str>) -> String {
     flags
 }
 
+/// Codex's model and effort, given before its subcommand.
+fn codex_flags(model: Option<&str>, effort: Option<&str>) -> String {
+    let mut flags = String::new();
+    if let Some(m) = model {
+        flags += &format!(" -m {}", paths::shell_quote(m));
+    }
+    if let Some(e) = effort {
+        flags += &format!(" -c {}", paths::shell_quote(&format!("model_reasoning_effort=\"{e}\"")));
+    }
+    flags
+}
+
 /// The shell command that runs the agent, then leaves a login shell behind when it exits.
 fn agent_command(
     agent: &str,
     role: Option<&str>,
+    model: Option<&str>,
     effort: Option<&str>,
     brief_file: Option<&Path>,
     resume: Option<&Session>,
@@ -325,7 +378,7 @@ fn agent_command(
     let brief_arg = brief_file.map(|f| format!(" \"$(cat {})\"", paths::shell_quote(&f.display().to_string()))).unwrap_or_default();
     let run = match agent {
         "claude" => {
-            let settings = format!("--settings {}{}", paths::shell_quote(&hooks_file().display().to_string()), claude_flags(role, effort));
+            let settings = format!("--settings {}{}", paths::shell_quote(&hooks_file().display().to_string()), claude_flags(role, model, effort));
             match resume {
                 Some(Session { claude_session: Some(id), .. }) => format!("claude {settings} --resume {}", paths::shell_quote(id)),
                 Some(_) => format!("claude {settings} --continue"),
@@ -333,10 +386,33 @@ fn agent_command(
             }
         }
         "codex" => {
-            let notify = format!("notify=[\"{}\",\"hook\",\"codex\"]", exe.display());
+            let notify = format!("-c {}{}", paths::shell_quote(&format!("notify=[\"{}\",\"hook\",\"codex\"]", exe.display())), codex_flags(model, effort));
             match resume {
-                Some(_) => format!("codex -c {} resume --last", paths::shell_quote(&notify)),
-                None => format!("codex -c {}{brief_arg}", paths::shell_quote(&notify)),
+                Some(_) => format!("codex {notify} resume --last"),
+                None => format!("codex {notify}{brief_arg}"),
+            }
+        }
+        "opencode" => {
+            let mut flags = String::new();
+            // OpenCode takes the effort as the variant of its model: `provider/model#effort`.
+            if let Some(m) = model {
+                let variant = effort.map(|e| format!("#{e}")).unwrap_or_default();
+                flags += &format!(" --model {}", paths::shell_quote(&format!("{m}{variant}")));
+            }
+            if role.is_some() {
+                flags += " --auto";
+            }
+            // Its own config directory, which holds only Gamestudio's status plugin: the user's OpenCode setup stays put.
+            let config = format!("OPENCODE_CONFIG_DIR={}", paths::shell_quote(&opencode_config_dir().display().to_string()));
+            // `--standalone`: the plugin runs in the server this session starts, which is the one that sees its environment.
+            match resume {
+                Some(_) => format!("{config} opencode --standalone --continue{flags}"),
+                None => {
+                    let prompt = brief_file
+                        .map(|f| format!(" --prompt \"$(cat {})\"", paths::shell_quote(&f.display().to_string())))
+                        .unwrap_or_default();
+                    format!("{config} opencode --standalone{flags}{prompt}")
+                }
             }
         }
         "shell" => return Ok(None),
@@ -402,9 +478,9 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
         .clone()
         .or_else(|| lead.map(|_| "worker".to_string()))
         .or_else(|| preset.map(str::to_string));
-    let effort = effort(&req.agent, req.effort.as_deref(), lead)?;
+    let (model, effort) = choice(&req.agent, req.model.as_deref(), req.effort.as_deref(), lead)?;
     // Fail before creating anything the command could not use.
-    agent_command(&req.agent, role.as_deref(), effort.as_deref(), None, None)?;
+    agent_command(&req.agent, role.as_deref(), model.as_deref(), effort.as_deref(), None, None)?;
 
     let (cwd, branch) = match req.place.as_str() {
         "main" => (worktrees::repo_path(&project)?, None),
@@ -447,7 +523,7 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
         }
         _ => None,
     };
-    let mut command = agent_command(&req.agent, role.as_deref(), effort.as_deref(), brief_file.as_deref(), None)?;
+    let mut command = agent_command(&req.agent, role.as_deref(), model.as_deref(), effort.as_deref(), brief_file.as_deref(), None)?;
     let fresh_worktree = req.place == "worktree" && !project.meta.setup.trim().is_empty();
     if let (true, Some(c)) = (fresh_worktree, &command) {
         command = Some(format!("{} && {c}", project.meta.setup.trim()));
@@ -470,6 +546,7 @@ pub fn start(app: &AppHandle, req: StartRequest) -> Result<Session, String> {
         message: None,
         parent: parent.map(|p| p.id),
         role,
+        model,
         effort,
         worker_effort: req.worker_effort.clone(),
     };
@@ -505,7 +582,7 @@ pub fn resume(app: &AppHandle, id: &str) -> Result<Session, String> {
     if !Path::new(&session.cwd).is_dir() {
         return Err(format!("{} n'existe plus", session.cwd));
     }
-    let command = agent_command(&session.agent, session.role.as_deref(), session.effort.as_deref(), None, Some(&session))?;
+    let command = agent_command(&session.agent, session.role.as_deref(), session.model.as_deref(), session.effort.as_deref(), None, Some(&session))?;
     spawn(&session, command.as_deref())?;
     // A resumed agent waits at its prompt for what to do next.
     update(id, |s| {
@@ -553,6 +630,7 @@ pub fn play(app: &AppHandle, project: &str, path: Option<&str>) -> Result<Sessio
             message: None,
             parent: None,
             role: None,
+            model: None,
             effort: None,
             worker_effort: None,
         }
@@ -626,6 +704,7 @@ pub fn orchestrate(app: &AppHandle, req: OrchestrateRequest) -> Result<Session, 
         title: Some("Orchestration".into()),
         parent: None,
         role: Some("orchestrator".into()),
+        model: None,
         effort: Some(req.effort.unwrap_or_else(|| "xhigh".into())),
         worker_effort,
     };
@@ -642,7 +721,7 @@ pub fn send(app: &AppHandle, id: &str, text: &str, caller: Option<&str>) -> Resu
         _ => {}
     }
     tmux::paste(id, text)?;
-    if matches!(session.agent.as_str(), "claude" | "codex") {
+    if matches!(session.agent.as_str(), "claude" | "codex" | "opencode") {
         // Working from now on, so a `studio wait` right after does not see it idle before its hook fires.
         update(id, |s| {
             s.status = "working".into();
@@ -706,6 +785,11 @@ pub fn hook(app: &AppHandle, id: &str, event: &str, payload: &Value) {
         "prompt" | "tool" => "working",
         "notification" => "waiting",
         "stop" | "codex" => "idle",
+        "opencode" => match text("status").as_deref() {
+            Some("working") => "working",
+            Some("waiting") => "waiting",
+            _ => "idle",
+        },
         // Startup, resume, /clear and compaction alike: only the conversation id is news. A compaction in the middle
         // of a turn is no reason to look idle.
         "start" => {
@@ -732,6 +816,7 @@ pub fn hook(app: &AppHandle, id: &str, event: &str, payload: &Value) {
                 "notification" => text("message"),
                 "stop" => text("last_assistant_message").map(|m| m.chars().take(400).collect()),
                 "codex" => text("last-assistant-message").map(|m| m.chars().take(400).collect()),
+                "opencode" => text("message").map(|m| m.chars().take(400).collect()),
                 _ => None,
             };
         }
@@ -795,11 +880,13 @@ mod tests {
 
     #[test]
     fn unattended_sessions_run_in_auto_mode() {
-        assert_eq!(claude_flags(None, None), "");
-        assert_eq!(claude_flags(None, Some("low")), " --effort low");
-        assert_eq!(claude_flags(Some("worker"), None), " --permission-mode auto");
-        assert_eq!(claude_flags(Some("groom"), None), " --permission-mode auto");
-        assert_eq!(claude_flags(Some("orchestrator"), Some("xhigh")), " --model opus --effort xhigh --permission-mode auto");
+        assert_eq!(claude_flags(None, None, None), "");
+        assert_eq!(claude_flags(None, None, Some("low")), " --effort low");
+        assert_eq!(claude_flags(None, Some("sonnet"), Some("low")), " --model 'sonnet' --effort low");
+        assert_eq!(claude_flags(Some("worker"), None, None), " --permission-mode auto");
+        assert_eq!(claude_flags(Some("groom"), None, None), " --permission-mode auto");
+        assert_eq!(claude_flags(Some("orchestrator"), None, Some("xhigh")), " --model opus --effort xhigh --permission-mode auto");
+        assert_eq!(claude_flags(Some("orchestrator"), Some("sonnet"), None), " --model opus --permission-mode auto");
         let (project, _) = fixtures();
         let prompt = orchestrate_prompt(&project, "orchestration-2026-10-29-1432", 3, None, "Seulement les bugs.");
         assert!(prompt.contains("`studio guide orchestrate`"));
@@ -827,18 +914,46 @@ mod tests {
             message: None,
             parent: None,
             role: Some("orchestrator".into()),
+            model: None,
             effort: Some("xhigh".into()),
             worker_effort: worker_effort.map(str::to_owned),
         };
+        let effort = |agent, asked, lead: Option<&Session>| choice(agent, None, asked, lead).map(|(_, e)| e);
         assert_eq!(effort("claude", None, None), Ok(None));
         assert_eq!(effort("claude", Some(" "), None), Ok(None));
         assert_eq!(effort("claude", Some("medium"), None), Ok(Some("medium".into())));
         assert!(effort("claude", Some("ultra"), None).is_err());
-        assert!(effort("codex", Some("high"), None).is_err());
         // Left to the orchestrator, or set by the user for all its agents.
         assert_eq!(effort("claude", Some("low"), Some(&lead(None))), Ok(Some("low".into())));
         assert_eq!(effort("claude", Some("low"), Some(&lead(Some("high")))), Ok(Some("high".into())));
         assert_eq!(effort("claude", None, Some(&lead(Some("high")))), Ok(Some("high".into())));
         assert_eq!(effort("codex", None, Some(&lead(Some("high")))), Ok(None));
+    }
+
+    #[test]
+    fn a_model_takes_its_own_efforts() {
+        assert_eq!(choice("claude", Some("opus"), Some("max"), None), Ok((Some("opus".into()), Some("max".into()))));
+        assert_eq!(choice("claude", Some("haiku"), None, None), Ok((Some("haiku".into()), None)));
+        assert!(choice("claude", Some("gpt-9"), None, None).is_err());
+        assert_eq!(choice("claude", None, None, None), Ok((None, None)));
+        assert!(choice("shell", None, Some("high"), None).is_err());
+    }
+
+    #[test]
+    fn opencode_takes_its_effort_as_the_model_variant() {
+        let command = agent_command("opencode", Some("worker"), Some("opencode-go/minimax-m3.1-flash"), Some("high"), None, None)
+            .unwrap()
+            .unwrap();
+        assert!(command.contains("opencode --standalone --model 'opencode-go/minimax-m3.1-flash#high' --auto"));
+        assert!(command.starts_with("OPENCODE_CONFIG_DIR='"));
+        let attended = agent_command("opencode", None, None, None, None, None).unwrap().unwrap();
+        assert!(attended.contains("opencode --standalone;") || attended.contains("opencode --standalone "));
+        assert!(!attended.contains("--auto") && !attended.contains("--model"));
+    }
+
+    #[test]
+    fn codex_gets_its_model_and_effort_as_flags() {
+        assert_eq!(codex_flags(None, None), "");
+        assert_eq!(codex_flags(Some("gpt-6.1-sol"), Some("high")), " -m 'gpt-6.1-sol' -c 'model_reasoning_effort=\"high\"'");
     }
 }

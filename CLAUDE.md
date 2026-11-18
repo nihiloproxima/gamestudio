@@ -44,7 +44,12 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   `tmux.conf`, `claude-hooks.json`, `briefs/`, `bin/studio` (link to the running binary).
 - **Sessions** (`sessions.rs`): tmux on a private server (`tmux -L studio`), shown through xterm.js, so agents outlive
   the app. Claude runs with `--settings ~/.gamestudio/claude-hooks.json` (hooks call `studio hook …` → status
-  working/waiting/idle, Claude session id for `--resume`), Codex with `-c notify=[…]`. Sessions get `STUDIO_SESSION`,
+  working/waiting/idle, Claude session id for `--resume`), Codex with `-c notify=[…]`. OpenCode gets a plugin
+  (`opencode_plugin.js`, written to `~/.gamestudio/opencode/plugins`) that reports `studio hook opencode` from its
+  session events; it is loaded through `OPENCODE_CONFIG_DIR`, with `--standalone` so the server running it sees the
+  session's environment. Models and efforts come from each agent's CLI (`models.rs`: `codex debug models`,
+  `opencode models` with its cached catalog, cached 5 min; Claude's aliases and efforts are fixed), and a session's
+  `model` and `effort` are checked against them (`sessions::choice`). Sessions get `STUDIO_SESSION`,
   `STUDIO_PROJECT`, `STUDIO_ITEM`, `STUDIO_AGENT` and `~/.gamestudio/bin` first on PATH. tmux takes a new session's
   PATH from the creating client, so `tmux::new_session` (and `respawn`) set it on the client too. They also get
   `CLAUDE_CODE_SCROLL_SPEED=3`: Claude Code makes up for xterm.js's damped wheel only when it recognizes xterm.js,

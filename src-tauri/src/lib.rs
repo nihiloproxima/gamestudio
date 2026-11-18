@@ -4,6 +4,7 @@ mod commands;
 mod control;
 mod game;
 mod github;
+mod models;
 mod paths;
 mod plan;
 mod pty;
@@ -25,7 +26,7 @@ pub fn run() {
         return;
     }
     paths::adopt_login_path();
-    for prepared in [tmux::write_conf(), sessions::write_hooks(), sessions::link_cli()] {
+    for prepared in [tmux::write_conf(), sessions::write_hooks(), sessions::write_opencode_plugin(), sessions::link_cli()] {
         if let Err(e) = prepared {
             eprintln!("{e}");
         }
@@ -57,6 +58,7 @@ pub fn run() {
             commands::item_delete,
             commands::sessions_list,
             commands::session_start,
+            commands::agent_options,
             commands::session_setup,
             commands::session_orchestrate,
             commands::session_play,

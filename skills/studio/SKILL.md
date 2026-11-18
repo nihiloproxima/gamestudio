@@ -42,6 +42,8 @@ studio milestone set <id> --status active
 studio project set --assets assets,content --base origin/main --setup "pnpm install" --vision -
 studio start JEU-12 --branch jeu-12-armures   # starts a Claude session on it, in a new worktree
 studio start JEU-12 --branch jeu-12-armures --effort high   # same, at a given effort (low, medium, high, xhigh, max)
+studio start JEU-12 --agent codex --model gpt-6.1-sol --effort high   # a Codex session; models and efforts as the agent's CLI lists them
+studio start JEU-12 --agent opencode --model opencode-go/minimax-m3.1-flash --effort high   # an OpenCode session (effort = the model's variant)
 studio start --preset groom                # a free session, no item, no worktree: it grooms the roadmap, auto mode
 ```
 

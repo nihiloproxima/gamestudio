@@ -104,7 +104,7 @@ async function stop(s: Session) {
 }
 
 const STATUS_TEXT = { waiting: "attend ta réponse", working: "travaille", idle: "au repos", offline: "arrêté" };
-const AGENT_NAME = { claude: "Claude", codex: "Codex", shell: "Terminal", game: "Le jeu" };
+const AGENT_NAME = { claude: "Claude", codex: "Codex", opencode: "OpenCode", shell: "Terminal", game: "Le jeu" };
 
 function agentName(s: Session) {
   const name = (s.role === "orchestrator" ? "L'orchestrateur" : AGENT_NAME[s.agent]) + (s.effort ? ` en effort ${s.effort}` : "");

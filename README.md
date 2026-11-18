@@ -17,7 +17,7 @@ a time, in one window.
 - **Roadmap.** The game's pitch and objectives, then milestones with their "done when", due date and progress.
 - **Tasks, bugs, ideas.** Drop an idea or a bug in one line, triage it later into the backlog or the plan, and follow
   what is in progress, in review and done.
-- **Agents.** Start Claude Code, Codex or a plain terminal on a task, in the main checkout or a fresh worktree. Every
+- **Agents.** Start Claude Code, Codex, OpenCode or a plain terminal on a task, in the main checkout or a fresh worktree. Every
   worktree shows its branch, uncommitted changes and pull request; every agent shows whether it works, waits on you
   or rests. Terminals live in tmux, so agents keep running when you quit the app.
 - **Orchestration.** Claude Opus picks from the roadmap what can move in parallel, hands it to agents in their own

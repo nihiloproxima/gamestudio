@@ -18,7 +18,7 @@ jeu : un jeu à la fois, dans une seule fenêtre.
   avancement.
 - **Tâches, bugs, idées.** Une idée ou un bug se note en une ligne, se trie plus tard vers le backlog ou le plan, et
   on suit ce qui est en cours, en revue, fait.
-- **Agents.** Claude Code, Codex ou un simple terminal se lancent sur une tâche, dans le dépôt principal ou un
+- **Agents.** Claude Code, Codex, OpenCode ou un simple terminal se lancent sur une tâche, dans le dépôt principal ou un
   worktree neuf. Chaque worktree montre sa branche, ses changements non commités et sa pull request ; chaque agent
   montre s'il travaille, t'attend ou se repose. Les terminaux vivent dans tmux : les agents continuent quand l'app
   se ferme.

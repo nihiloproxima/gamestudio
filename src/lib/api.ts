@@ -1,5 +1,7 @@
 import { Channel, convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type {
+  AgentKind,
+  AgentOptions,
   Asset,
   Item,
   ItemDraft,
@@ -42,6 +44,8 @@ const tauriApi = {
 
   sessions: () => invoke<Session[]>("sessions_list"),
   sessionStart: (req: StartRequest) => invoke<Session>("session_start", { req }),
+  /** The models an agent can run and their efforts, as its own CLI reports them. */
+  agentOptions: (agent: AgentKind) => invoke<AgentOptions>("agent_options", { agent }),
   sessionSetup: (project: string) => invoke<Session>("session_setup", { project }),
   /** Claude Opus delegating the roadmap's parallel work to agents and merging it on an integration branch. */
   sessionOrchestrate: (req: OrchestrateRequest) => invoke<Session>("session_orchestrate", { req }),

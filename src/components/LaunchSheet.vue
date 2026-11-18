@@ -5,8 +5,9 @@ import Modal from "./Modal.vue";
 import PickMenu from "./PickMenu.vue";
 import AgentIcon from "./AgentIcon.vue";
 import StatusIcon from "./StatusIcon.vue";
-import { AGENTS, EFFORTS, type AgentKind, type Effort, type StartRequest } from "../domain/types";
+import { AGENTS, type AgentKind, type AgentOptions, type Effort, type StartRequest } from "../domain/types";
 import { byPriority, isOpen, itemsById, project, refreshWorktrees, startSession, store } from "../state/store";
+import { api, errorText } from "../lib/api";
 import { slugify, tilde } from "../lib/format";
 
 /** Starts an agent (or a plain terminal) on an item, in the main checkout, a new worktree or an existing one. */
@@ -27,9 +28,52 @@ const branch = ref("");
 const path = ref(store.launch?.path ?? "");
 const prompt = ref("");
 const busy = ref(false);
-/** Claude's effort; null keeps Claude's own default. */
-const savedEffort = localStorage.getItem("launch.effort") as Effort | null;
-const effort = ref<Effort | null>(savedEffort && EFFORTS.includes(savedEffort) ? savedEffort : null);
+/** What the agent can run, as its CLI reports it; null keeps the agent's own model and effort. */
+const options = ref<AgentOptions | null>(null);
+const optionsError = ref("");
+const model = ref<string | null>(null);
+const effort = ref<Effort | null>(null);
+const modelId = computed({
+  get: () => model.value ?? NONE,
+  set: (id: string) => (model.value = id === NONE ? null : id),
+});
+const modelOptions = computed(() => [
+  { id: NONE, label: "Par défaut" },
+  ...(options.value?.models ?? []).map((m) => ({ id: m.id, label: m.label })),
+]);
+const modelLabel = computed(() => options.value?.models.find((m) => m.id === model.value)?.label ?? "Par défaut");
+/** The efforts the chosen model takes, or those of the agent's default model. */
+const efforts = computed<Effort[]>(() => {
+  const o = options.value;
+  if (!o) return [];
+  return o.models.find((m) => m.id === model.value)?.efforts ?? o.efforts;
+});
+
+function saved(key: string, allowed: string[]) {
+  const value = localStorage.getItem(key);
+  return value && allowed.includes(value) ? value : null;
+}
+
+async function loadOptions(a: AgentKind) {
+  options.value = null;
+  optionsError.value = "";
+  model.value = null;
+  effort.value = null;
+  if (a === "shell" || a === "game") return;
+  try {
+    const o = await api.agentOptions(a);
+    if (agent.value !== a) return;
+    options.value = o;
+    model.value = saved(`launch.model.${a}`, o.models.map((m) => m.id));
+    effort.value = saved(`launch.effort.${a}`, efforts.value);
+  } catch (e) {
+    if (agent.value === a) optionsError.value = errorText(e);
+  }
+}
+watch(agent, loadOptions, { immediate: true });
+watch(model, () => {
+  if (effort.value && !efforts.value.includes(effort.value)) effort.value = null;
+});
 
 const item = computed(() => (itemId.value === NONE ? undefined : itemsById.value.get(itemId.value)));
 const itemOptions = computed(() => [
@@ -88,7 +132,10 @@ async function launch() {
   if (!ready.value || busy.value) return;
   busy.value = true;
   localStorage.setItem("launch.agent", agent.value);
-  if (agent.value === "claude") localStorage.setItem("launch.effort", effort.value ?? "");
+  if (options.value) {
+    localStorage.setItem(`launch.model.${agent.value}`, model.value ?? "");
+    localStorage.setItem(`launch.effort.${agent.value}`, effort.value ?? "");
+  }
   localStorage.setItem(`launch.place.${store.projectId}`, place.value === "path" ? "main" : place.value);
   localStorage.setItem("launch.preset", !item.value ? (preset.value ?? "") : "");
   await startSession({
@@ -100,7 +147,8 @@ async function launch() {
     path: place.value === "path" ? path.value : undefined,
     prompt: prompt.value,
     preset: !item.value ? preset.value : null,
-    effort: agent.value === "claude" ? (effort.value ?? undefined) : undefined,
+    model: model.value ?? undefined,
+    effort: effort.value ?? undefined,
   });
   busy.value = false;
 }
@@ -150,11 +198,20 @@ async function launch() {
           </div>
         </div>
 
-        <div v-if="agent === 'claude'" class="row">
+        <div v-if="options?.models.length" class="row">
+          <span class="label">Modèle</span>
+          <PickMenu v-model="modelId" :options="modelOptions" filterable>
+            <template #default="{ toggle }">
+              <button type="button" class="btn btn-quiet btn-sm code" @click="toggle">{{ modelLabel }}</button>
+            </template>
+          </PickMenu>
+        </div>
+
+        <div v-if="efforts.length" class="row">
           <span class="label">Effort</span>
           <div class="segmented">
             <button type="button" :class="{ on: !effort }" @click="effort = null">Par défaut</button>
-            <button v-for="e in EFFORTS" :key="e" type="button" :class="{ on: effort === e }" @click="effort = e">{{ e }}</button>
+            <button v-for="e in efforts" :key="e" type="button" :class="{ on: effort === e }" @click="effort = e">{{ e }}</button>
           </div>
         </div>
 
@@ -206,6 +263,7 @@ async function launch() {
           rows="3"
           :placeholder="promptPlaceholder"
         />
+        <p v-if="optionsError" class="error">{{ optionsError }}</p>
         <p v-if="!project?.present" class="error">{{ project?.name }} n'est pas cloné dans {{ project?.path }} sur ce Mac : règle le chemin dans les réglages.</p>
       </div>
 
@@ -244,7 +302,7 @@ header h2 {
   gap: 12px;
 }
 .row .label {
-  width: 40px;
+  width: 56px;
   margin: 0;
 }
 .pick-item {

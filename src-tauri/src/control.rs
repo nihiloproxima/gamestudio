@@ -61,7 +61,9 @@ pub enum Request {
         prompt: String,
         /// A free session's mission, without an item: `groom` or `brainstorm`.
         preset: Option<String>,
-        /// Claude's effort, `low` to `max`; Claude's default without one.
+        /// The model, one `studio start --model` takes; the agent's default without one.
+        model: Option<String>,
+        /// The effort the model takes; the agent's default without one.
         effort: Option<String>,
         caller: Option<String>,
     },
@@ -271,7 +273,7 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
             let project = resolve_project(&ctx)?;
             Ok(json!(sessions::list().into_iter().filter(|s| s.project == project.id).collect::<Vec<_>>()))
         }
-        Request::Start { ctx, item, agent, place, branch, prompt, preset, effort, caller } => {
+        Request::Start { ctx, item, agent, place, branch, prompt, preset, model, effort, caller } => {
             let project = match item.as_deref() {
                 Some(id) => store::item(id)?.project,
                 None => resolve_project(&ctx)?.id,
@@ -292,6 +294,7 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
                 title: None,
                 parent: caller,
                 role: None,
+                model,
                 effort,
                 worker_effort: None,
             };

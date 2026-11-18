@@ -79,11 +79,25 @@ export type AgentStatus = "waiting" | "working" | "idle" | "offline";
 export const STATUS_PRIORITY: AgentStatus[] = ["waiting", "working", "idle", "offline"];
 
 /** `game` is the game itself, running (`sessionPlay`): not an agent one can start from the launch sheet. */
-export type AgentKind = "claude" | "codex" | "shell" | "game";
+export type AgentKind = "claude" | "codex" | "opencode" | "shell" | "game";
 
-/** Claude Code's effort levels, lowest first (`claude --effort`). */
-export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+/** An agent's effort level, as its model takes it (`agentOptions`). */
+export type Effort = string;
+/** Claude Code's effort levels, lowest first (`claude --effort`); the orchestrator sets them for its agents. */
 export const EFFORTS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
+
+/** A model an agent can run; `id` goes to the agent as `--model` (Claude) or `-m` (Codex). */
+export interface AgentModel {
+  id: string;
+  label: string;
+  efforts: Effort[];
+}
+
+/** What an agent can run: its models, and the efforts available when no model is picked. */
+export interface AgentOptions {
+  models: AgentModel[];
+  efforts: Effort[];
+}
 
 export interface Session {
   /** Also its tmux session name. */
@@ -103,7 +117,9 @@ export interface Session {
   parent: string | null;
   /** Unattended sessions: the orchestrator, and the agents it launched. A free session's mission otherwise. */
   role: "orchestrator" | "worker" | "groom" | "brainstorm" | null;
-  /** Claude's effort; Claude's own default when null. */
+  /** The model the agent runs; its own default when null. */
+  model: string | null;
+  /** The agent's effort; its own default when null. */
   effort: Effort | null;
   /** An orchestrator's: the effort the user set for all its agents; null when it picks each agent's. */
   workerEffort: Effort | null;
@@ -119,7 +135,9 @@ export interface StartRequest {
   prompt?: string;
   /** A free session's mission, no item: groom the roadmap or brainstorm it. */
   preset?: "groom" | "brainstorm" | null;
-  /** Claude only. */
+  /** One of the agent's models (`agentOptions`); its default without one. */
+  model?: string;
+  /** An effort the model takes; the agent's default without one. */
   effort?: Effort;
 }
 
@@ -226,6 +244,7 @@ export const MILESTONE_STATUSES: { id: MilestoneStatus; label: string }[] = [
 export const AGENTS: { id: AgentKind; label: string }[] = [
   { id: "claude", label: "Claude" },
   { id: "codex", label: "Codex" },
+  { id: "opencode", label: "OpenCode" },
   { id: "shell", label: "Terminal" },
 ];
 
