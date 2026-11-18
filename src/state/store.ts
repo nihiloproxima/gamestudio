@@ -153,10 +153,32 @@ export async function refreshData() {
 
 export async function refreshSessions() {
   try {
+    const before = new Map(store.sessions.map((s) => [s.id, s.status]));
     store.sessions = await api.sessions();
+    // In the background, the system notification tells it (sessions::notify_waiting); in front, a toast does.
+    if (before.size && document.hasFocus()) {
+      for (const s of store.sessions) if (s.status === "waiting" && before.get(s.id) !== "waiting") announceWaiting(s);
+    }
   } catch (e) {
     console.warn("Sessions :", errorText(e));
   }
+}
+
+const AGENT_NAMES: Partial<Record<string, string>> = { claude: "Claude", codex: "Codex", opencode: "OpenCode" };
+
+function announceWaiting(s: Session) {
+  const shown = store.route.name === "agents" && store.route.session === s.id;
+  if (shown) return;
+  const where = s.project === store.projectId ? "" : ` sur ${store.projects.find((p) => p.id === s.project)?.name ?? s.project}`;
+  notify(`${AGENT_NAMES[s.agent] ?? "Un agent"} t'attend${where} : ${s.title}`, {
+    action: {
+      label: "Voir",
+      run: async () => {
+        await switchProject(s.project);
+        go({ name: "agents", session: s.id });
+      },
+    },
+  });
 }
 
 export async function refreshWorktrees() {

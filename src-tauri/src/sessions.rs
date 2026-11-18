@@ -804,6 +804,7 @@ pub fn hook(app: &AppHandle, id: &str, event: &str, payload: &Value) {
         _ => return,
     };
     let mut moved = false;
+    let mut now_waiting = None;
     update(id, |s| {
         // A worker idle at its prompt waits on its orchestrator, not on the user: only a permission turns it amber.
         if s.role.as_deref() == Some("worker") && text("notification_type").as_deref() == Some("idle_prompt") {
@@ -822,10 +823,46 @@ pub fn hook(app: &AppHandle, id: &str, event: &str, payload: &Value) {
                 "opencode" => text("message").map(|m| m.chars().take(400).collect()),
                 _ => None,
             };
+            if status == "waiting" {
+                now_waiting = Some(s.clone());
+            }
         }
     });
     if moved {
         changed(app);
+    }
+    if let Some(session) = now_waiting {
+        notify_waiting(app, &session);
+    }
+}
+
+/// A notification with a sound when an agent starts waiting on the user while the app is in the background; in front,
+/// the app shows it itself.
+fn notify_waiting(app: &AppHandle, session: &Session) {
+    use tauri_plugin_notification::NotificationExt;
+    if app.get_webview_window("main").and_then(|w| w.is_focused().ok()).unwrap_or(false) {
+        return;
+    }
+    let project = store::project(&session.project).map(|p| p.meta.name).unwrap_or_else(|_| session.project.clone());
+    let body = match &session.message {
+        Some(m) => format!("{}\n{m}", session.title),
+        None => session.title.clone(),
+    };
+    let _ = app
+        .notification()
+        .builder()
+        .title(format!("{} t'attend sur {project}", agent_name(&session.agent)))
+        .body(body)
+        .sound("default")
+        .show();
+}
+
+fn agent_name(agent: &str) -> &str {
+    match agent {
+        "claude" => "Claude",
+        "codex" => "Codex",
+        "opencode" => "OpenCode",
+        _ => "Un agent",
     }
 }
 

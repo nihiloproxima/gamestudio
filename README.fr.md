@@ -1,20 +1,21 @@
-# Gamestudio
+# Studio
 
 [English](README.md) | **Français**
 
-Un atelier macOS pour faire ses jeux avec des agents de code. La roadmap du jeu, ses tâches, bugs et idées, les
-sessions Claude Code ou Codex qui y travaillent avec leurs worktrees et leurs pull requests, et les images et sons du
-jeu : un jeu à la fois, dans une seule fenêtre.
+Un atelier macOS pour construire ses projets avec des agents de code : un jeu, une app web, un firmware, tout projet
+dans un dépôt git. La roadmap du projet, ses tâches, bugs et idées, les sessions Claude Code ou Codex qui y
+travaillent avec leurs worktrees et leurs pull requests, et ses assets s'il en a : un projet à la fois, dans une seule
+fenêtre.
 
-![Vue d'ensemble d'un jeu : jalon en cours, agents qui t'attendent, tâches en cours, pull requests](docs/screenshots/overview.png)
+![Vue d'ensemble d'un projet : jalon en cours, agents qui t'attendent, tâches en cours, pull requests](docs/screenshots/overview.png)
 
-> Gamestudio tourne sur les Mac Apple Silicon.
+> Studio tourne sur les Mac Apple Silicon.
 
 ## Ce qu'il fait
 
-- **Un jeu à la fois.** Un sélecteur (⌥1–9) passe d'un jeu à l'autre ; tout le reste appartient au jeu courant, et
-  la fenêtre prend sa couleur.
-- **Roadmap.** Le pitch et les objectifs du jeu, puis des jalons avec leur « Fait quand », leur échéance et leur
+- **Un projet à la fois.** Un sélecteur (⌥1–9) passe d'un projet à l'autre ; tout le reste appartient au projet
+  courant, et la fenêtre prend sa couleur.
+- **Roadmap.** La vision et les objectifs du projet, puis des jalons avec leur « Fait quand », leur échéance et leur
   avancement.
 - **Tâches, bugs, idées.** Une idée ou un bug se note en une ligne, se trie plus tard vers le backlog ou le plan, et
   on suit ce qui est en cours, en revue, fait.
@@ -25,12 +26,13 @@ jeu : un jeu à la fois, dans une seule fenêtre.
 - **Orchestration.** Claude Opus prend dans la roadmap ce qui peut avancer en parallèle, le confie à des agents
   chacun dans son worktree, relit et fusionne leur travail sur une branche d'intégration, et ouvre une seule pull
   request.
-- **Assets.** Les images et les sons du jeu, les plus récents en tête : ce qu'un agent vient de générer apparaît.
+- **Assets.** Quand le projet déclare des dossiers d'assets (les images et les sons d'un jeu, par exemple), ses
+  images et ses sons, les plus récents en tête : ce qu'un agent vient de générer apparaît.
 - **GitHub.** Les pull requests du dépôt, leur CI et leurs revues, reliées aux tâches qu'elles traitent.
-- **Le suivi voyage avec le jeu.** Il vit sur une branche `gamestudio` du dépôt du jeu, un fichier Markdown par
-  élément. On clone le jeu sur un autre Mac, on l'ajoute, et sa roadmap revient.
+- **Le suivi voyage avec le projet.** Il vit sur une branche `studio` du dépôt du projet, un fichier Markdown par
+  élément. On clone le projet sur un autre Mac, on l'ajoute, et sa roadmap revient.
 - **Pensé pour les agents.** La commande `studio` donne à un agent sa tâche et lui permet de noter ses avancées ou
-  de garder une idée pour plus tard ; « Configurer avec Claude » laisse Claude lire le dépôt d'un jeu et remplir la
+  de garder une idée pour plus tard ; « Configurer avec Claude » laisse Claude lire le dépôt d'un projet et remplir la
   roadmap une fois que tu as dit oui.
 
 ## En images
@@ -39,18 +41,18 @@ jeu : un jeu à la fois, dans une seule fenêtre.
 | --- | --- |
 | ![Roadmap avec les jalons et leur avancement](docs/screenshots/roadmap.png) **Roadmap.** Le cap, puis les jalons sur un fil : atteints, en cours, à venir. | ![Liste des tâches avec une tâche ouverte sur le côté](docs/screenshots/tasks.png) **Tâches.** Statut, priorité et jalon se changent sur place ; une tâche s'ouvre sur le côté avec sa description et le travail qui s'y rattache. |
 | ![Vue Agents : worktrees, sessions et terminal](docs/screenshots/agents.png) **Agents.** Les worktrees avec leur état et leurs sessions ; le terminal de l'agent choisi, et ce qu'il attend. | ![Idées et backlog avec la saisie en une ligne](docs/screenshots/backlog.png) **Idées et backlog.** Une ligne pour noter, puis le tri : backlog, plan ou abandon. |
-| ![Galerie d'assets avec les fichiers récents signalés](docs/screenshots/assets.png) **Assets.** Les images sur un damier, nettes pour le pixel art ; les sons s'écoutent sur place. | ![Palette de commandes](docs/screenshots/palette.png) **⌘K.** N'importe quelle tâche, vue, jeu ou action, au clavier. |
+| ![Galerie d'assets avec les fichiers récents signalés](docs/screenshots/assets.png) **Assets.** En option : les images sur un damier, nettes pour le pixel art d'un jeu ; les sons s'écoutent sur place. | ![Palette de commandes](docs/screenshots/palette.png) **⌘K.** N'importe quelle tâche, vue, projet ou action, au clavier. |
 
 ## Comment ça marche
 
-### Le suivi vit dans le dépôt du jeu
+### Le suivi vit dans le dépôt du projet
 
-Les données d'un jeu sont sur une branche orpheline `gamestudio` de son dépôt : elle ne partage aucun historique avec
-le code et ne touche jamais ta copie de travail ni `main`. Gamestudio en garde une petite copie dans
-`~/.gamestudio/data/<jeu>` :
+Les données d'un projet sont sur une branche orpheline `studio` de son dépôt : elle ne partage aucun historique avec
+le code et ne touche jamais ta copie de travail ni `main`. Studio en garde une petite copie dans
+`~/.studio/data/<projet>` :
 
 ```
-project.md            nom, clé des éléments, couleur, dossiers d'assets, pitch et objectifs du jeu
+project.md            nom, clé des éléments, couleur, dossiers d'assets, vision et objectifs du projet
 milestones/demo.md    un jalon : statut, échéance, « Fait quand »
 items/FRO-12.md       une tâche, un bug ou une idée
 ```
@@ -75,11 +77,11 @@ Les armures donnent de la défense et un malus de vitesse.
 Une modification est commitée et poussée quelques secondes après, et celles des autres machines arrivent toutes les
 trois minutes. Quand deux Mac modifient le même élément, git fusionne ligne par ligne ; là où ils divergent sur une
 ligne, la machine qui synchronise l'emporte et l'autre version reste dans l'historique. L'emplacement du dépôt sur
-chaque Mac est gardé localement (`~/.gamestudio/repos.json`).
+chaque Mac est gardé localement (`~/.studio/repos.json`).
 
 ### Les agents tournent dans tmux
 
-Chaque session tourne dans le serveur tmux de Gamestudio, affiché dans l'app par xterm.js. Fermer ou mettre à jour
+Chaque session tourne dans le serveur tmux de Studio, affiché dans l'app par xterm.js. Fermer ou mettre à jour
 l'app laisse les agents tourner ; `tmux -L studio attach` les retrouve depuis n'importe quel terminal. Un agent
 lancé sur une tâche la reçoit comme consigne, et une session dans un nouveau worktree a une branche au nom de la
 tâche (`fro-12-armures`), pour que sa pull request s'y rattache. Claude Code est lancé avec des hooks (via
@@ -87,9 +89,10 @@ tâche (`fro-12-armures`), pour que sa pull request s'y rattache. Claude Code es
 un agent qui attend pulse en ambre et se compte sur l'icône du Dock. Après un redémarrage, un clic reprend la
 conversation Claude d'une session.
 
-Le jeu tourne de la même façon (<kbd>P</kbd>, ou depuis n'importe quel worktree pour essayer la branche d'un agent) :
-sa sortie reste dans un terminal, et le relancer le redémarre sur le code du moment. Gamestudio reconnaît un projet
-Godot ; pour un autre moteur, indique la commande dans les réglages.
+Le projet tourne de la même façon (« Lancer le projet », <kbd>P</kbd>, ou depuis n'importe quel worktree pour essayer
+la branche d'un agent) : sa commande `run` (un serveur de dev, un jeu…) démarre dans un terminal où sa sortie reste,
+et la relancer la redémarre sur le code du moment. Indique la commande dans les réglages ; pour un jeu Godot, Studio
+la lit dans le dépôt.
 
 ### La commande `studio`
 
@@ -97,7 +100,7 @@ Le binaire de l'app sert aussi de ligne de commande, pour toi et pour les agents
 l'ont dans leur PATH :
 
 ```sh
-studio items                        # ce qui est ouvert dans le jeu du dossier courant
+studio items                        # ce qui est ouvert dans le projet du dossier courant
 studio item FRO-12                  # une tâche, en entier
 studio note FRO-12 "slot de torse fait, reste les jambes"
 studio status FRO-12 review
@@ -107,9 +110,9 @@ studio wait                         # pour un agent : jusqu'à ce qu'un des agen
 studio help                         # tout le reste
 ```
 
-### Laisser Claude configurer un jeu
+### Laisser Claude configurer un projet
 
-« Configurer avec Claude » lance une session Claude dans le dépôt du jeu, qui suit `studio guide setup`. Claude lit
+« Configurer avec Claude » lance une session Claude dans le dépôt du projet, qui suit `studio guide setup`. Claude lit
 le dépôt (plans, documents de design, historique git, pull requests, TODO, dossiers d'assets), te pose les questions
 qui changent le plan, montre un aperçu avec `studio import --dry-run`, et n'écrit rien avant ton accord.
 
@@ -117,7 +120,7 @@ qui changent le plan, montre un aperçu avec `studio import --dry-run`, et n'éc
 
 « Orchestrer » (<kbd>O</kbd>, ou dans la vue des agents) lance Claude Opus (en effort `xhigh`, sauf si tu en choisis
 un autre) dans un worktree à lui, sur une nouvelle branche `orchestration-…`, qui suit `studio guide orchestrate`. Il lit la roadmap et le code,
-prévoit des vagues de tâches et de bugs prévus qui touchent des parties distinctes du jeu, et lance un agent Claude
+prévoit des vagues de tâches et de bugs prévus qui touchent des parties distinctes du projet, et lance un agent Claude
 sur chacun avec `studio start`, chacun dans un worktree parti de sa branche d'intégration, avec l'effort qu'il juge
 nécessaire, ou celui que tu as fixé pour tous. Il les attend avec
 `studio wait`, lit leur écran avec `studio peek`, leur répond avec `studio send`, nomme son sujet avec `studio title`, relit et fusionne chaque branche
@@ -157,7 +160,7 @@ continuent de tourner pendant ce temps.
 - Un Mac Apple Silicon
 - `git`, `tmux`, et la [CLI GitHub](https://cli.github.com) connectée (`gh auth login`)
 - [Claude Code](https://claude.com/claude-code) et/ou Codex pour les agents
-- Tes jeux dans des dépôts git
+- Tes projets dans des dépôts git
 
 ## Installer
 
@@ -171,23 +174,23 @@ clone, `pnpm app:install` construit et installe à partir des sources.
 
 ## Premiers pas
 
-1. **Ajoute un jeu.** Indique son dépôt, avec un nom et une clé pour ses éléments (`FRO` donne `FRO-1`, `FRO-2`…).
-   Si le dépôt a déjà une branche `gamestudio`, ses données reviennent telles quelles.
+1. **Ajoute un projet.** Indique son dépôt, avec un nom et une clé pour ses éléments (`FRO` donne `FRO-1`, `FRO-2`…).
+   Si le dépôt a déjà une branche `studio`, ses données reviennent telles quelles.
 2. **Remplis-le.** Laisse Claude le faire à partir du dépôt (« Configurer avec Claude »), ou crée les jalons dans la
    roadmap, les tâches avec <kbd>C</kbd>, les bugs avec <kbd>B</kbd> et les idées avec <kbd>I</kbd>.
 3. **Lance un agent** sur une tâche avec <kbd>A</kbd> : Claude (à son effort par défaut ou celui que tu choisis), Codex
    ou un terminal, dans le dépôt principal ou un nouveau worktree. Quand il a besoin de toi, son point passe à l'ambre.
-4. **Ajoute tes autres jeux** dans les Réglages, « Nouveau jeu », ou avec `studio project add` depuis leur dépôt.
+4. **Ajoute tes autres projets** dans les Réglages, « Nouveau projet », ou avec `studio project add` depuis leur dépôt.
 
 | Raccourci | |
 | --- | --- |
 | <kbd>⌘K</kbd> | recherche et actions |
 | <kbd>⌘1</kbd>–<kbd>⌘7</kbd> | vue d'ensemble, roadmap, tâches, idées, agents, assets, GitHub |
-| <kbd>⌥1</kbd>–<kbd>⌥9</kbd> | changer de jeu |
+| <kbd>⌥1</kbd>–<kbd>⌥9</kbd> | changer de projet |
 | <kbd>C</kbd> <kbd>B</kbd> <kbd>I</kbd> | nouvelle tâche, nouveau bug, nouvelle idée |
 | <kbd>A</kbd> | lancer un agent |
 | <kbd>O</kbd> | orchestrer des agents |
-| <kbd>P</kbd> | lancer le jeu |
+| <kbd>P</kbd> | lancer le projet |
 | <kbd>J</kbd> <kbd>K</kbd> <kbd>Entrée</kbd> | parcourir une liste, ouvrir |
 | <kbd>/</kbd> | filtrer |
 
@@ -196,7 +199,7 @@ clone, `pnpm app:install` construit et installe à partir des sources.
 ```sh
 pnpm install
 pnpm tauri dev                 # l'app
-pnpm dev                       # l'interface seule dans un navigateur, sur un studio de démonstration fictif
+pnpm dev                       # l'interface seule dans un navigateur, sur des jeux de démonstration fictifs
 pnpm exec vue-tsc --noEmit && (cd src-tauri && cargo test)
 scripts/screenshots.sh         # régénère ces captures à partir de la démo
 pnpm release 0.2.0             # depuis main : version, tag et push ; la CI publie la release

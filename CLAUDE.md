@@ -1,10 +1,11 @@
 # Studio
 
-A macOS workbench for developing games with coding agents: roadmap and objectives, tasks, bugs, ideas to triage, the
-agent sessions and worktrees working on them, assets and PRs. One game at a time, picked with the switcher;
-everything is segregated by project. Meant to replace an external tracker (Linear…) and PLAN.md-style checklists.
+A macOS workbench for developing software with coding agents (games first, any git repo since the rename from
+Gamestudio): roadmap and objectives, tasks, bugs, ideas to triage, the agent sessions and worktrees working on them,
+assets and PRs. One project at a time, picked with the switcher; everything is segregated by project. Meant to
+replace an external tracker (Linear…) and PLAN.md-style checklists.
 
-Nothing in the code is tied to one person's games, paths or accounts: games are added by their user (first-run form,
+Nothing in the code is tied to one person's projects, paths or accounts: projects are added by their user (first-run form,
 Settings, `studio project add`, or Claude through `studio guide setup`); demo data (`src/lib/demo.ts`) is fictional.
 Keep it that way.
 
@@ -40,6 +41,9 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   none). **Adding a game** (`sync::attach`: onboarding, Settings, `studio project add`) clones the data branch when
   the repo has one (another machine), else starts it; an unreachable remote is an error, never a second history. A
   new project's GitHub repo and base branch are read from its repo when left blank (`worktrees::fill_from_repo`).
+- **Renamed from Gamestudio** (`migrate.rs`): on first start `~/.gamestudio` moves to `~/.studio` (old path kept as a
+  link, worktrees repaired, Claude conversation folders linked under the new path for `--resume`); a data clone still
+  on the `gamestudio` branch moves to `studio` at its next sync and the old remote branch is deleted once pushed.
 - **Machine-local** (`~/.studio/`, not synced): `sessions.json`, `studio.sock`, `worktrees/<project>/<branch>`,
   `tmux.conf`, `claude-hooks.json`, `briefs/`, `bin/studio` (link to the running binary).
 - **Sessions** (`sessions.rs`): tmux on a private server (`tmux -L studio`), shown through xterm.js, so agents outlive
@@ -54,7 +58,7 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   PATH from the creating client, so `tmux::new_session` (and `respawn`) set it on the client too. They also get
   `CLAUDE_CODE_SCROLL_SPEED=3`: Claude Code makes up for xterm.js's damped wheel only when it recognizes xterm.js,
   which tmux hides from it.
-- **Playing** (`sessions::play`, `game.rs`): "Lancer le jeu" runs the project's `run` command, or one read from the
+- **Playing** (`sessions::play`, `game.rs`): "Lancer le projet" runs the project's `run` command, or one read from the
   repo (Godot: `project.godot` at the root or one folder down, `godot` on PATH or the app in Applications, the .NET
   build for a C# project), in a `game` session in the main checkout or a worktree, so its output shows in a terminal.
   Playing again there restarts it in place (`tmux respawn-pane`): attached views stay attached.
@@ -85,6 +89,9 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   beside it, two renames, rollback on failure), then a notification asks for a restart (`app_restart`). The bundle is
   ad-hoc signed as a whole (`bundle.macOS.signingIdentity: "-"`). The `studio` link and the Claude skill point inside
   the bundle (the skill is a bundle resource), so updates carry them along.
+- **Waiting on you**: a session turning `waiting` (hook) gets a system notification with a sound while the window is
+  in the background (`sessions::notify_waiting`), a toast with "Voir" while it is in front (`store.ts`
+  `announceWaiting`), and the Dock badge counts them.
 - **GitHub**: `gh pr list` per project (`github.rs`), polled every 2 min. **Assets**: scan of the project's declared
   folders (`assets.rs`), shown through Tauri's asset protocol.
 
@@ -108,8 +115,7 @@ game's vision and objectives ("Le cap").
 
 ## Next
 
-1. Notifications when an agent starts waiting (the notification plugin is in, used by updates); reboot restore
-   (resume every offline Claude session at once).
+1. Reboot restore (resume every offline Claude session at once).
 2. PR actions (ready for review, merge after checks) and CI logs; asset generation jobs with their outputs linked.
 3. Before a public release: an English UI (copy is French only); Developer ID signing and notarization if
    downloads from a browser must open without a Gatekeeper warning; an Intel or universal build.
