@@ -77,6 +77,7 @@ defineExpose({ toggle });
           <button
             v-for="(o, i) in shown"
             :key="o.id"
+            type="button"
             class="opt"
             :class="{ cursor: i === cursor }"
             @mouseenter="cursor = i"
