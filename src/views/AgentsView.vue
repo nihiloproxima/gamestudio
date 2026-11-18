@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
-import { Bot, Code, Network, Play, Plus, Power, RotateCcw } from "lucide-vue-next";
+import { Bot, Code, FlaskConical, Network, Play, Plus, Power, RotateCcw, ScanSearch, Send } from "lucide-vue-next";
 import AgentIcon from "../components/AgentIcon.vue";
 import StatusDot from "../components/StatusDot.vue";
 import TerminalView from "../components/TerminalView.vue";
@@ -10,6 +10,8 @@ import {
   confirmAsk,
   fail,
   go,
+  handOver,
+  inspectSession,
   now,
   openOrchestration,
   playGame,
@@ -106,10 +108,17 @@ async function stop(s: Session) {
 const STATUS_TEXT = { waiting: "attend ta réponse", working: "travaille", idle: "au repos", offline: "arrêté" };
 const AGENT_NAME = { claude: "Claude", codex: "Codex", opencode: "OpenCode", shell: "Terminal", game: "Le projet" };
 
+const ROLE_NAME: Partial<Record<string, string>> = { orchestrator: "L'orchestrateur", review: "Le relecteur", qa: "Le testeur" };
+
 function agentName(s: Session) {
-  const name = (s.role === "orchestrator" ? "L'orchestrateur" : AGENT_NAME[s.agent]) + (s.effort ? ` en effort ${s.effort}` : "");
+  const name = (ROLE_NAME[s.role ?? ""] ?? AGENT_NAME[s.agent]) + (s.effort ? ` en effort ${s.effort}` : "");
   return s.role === "worker" ? `${name}, pour l'orchestrateur,` : name;
 }
+
+/** An agent whose work can be reviewed or tested: not a terminal, the project running, or a reviewer itself. */
+const inspectable = (s: Session) => ["claude", "codex", "opencode"].includes(s.agent) && s.role !== "review" && s.role !== "qa";
+/** A review or QA agent done with its turn: its report can go to the agent it looked at. */
+const reported = (s: Session) => (s.role === "review" || s.role === "qa") && s.parent && (s.status === "idle" || s.status === "waiting");
 
 function statusText(s: Session) {
   return s.agent === "game" && s.status !== "offline" ? "lancé" : STATUS_TEXT[s.status];
@@ -170,6 +179,17 @@ function statusText(s: Session) {
                 </span>
               </p>
             </div>
+            <template v-if="inspectable(selected)">
+              <button class="btn btn-ghost btn-sm" title="Un agent relit ce travail, sans le modifier" @click="inspectSession(selected.id, 'review')">
+                <ScanSearch />Relire
+              </button>
+              <button class="btn btn-ghost btn-sm" title="Un agent teste ce travail, sans le modifier" @click="inspectSession(selected.id, 'qa')">
+                <FlaskConical />Tester
+              </button>
+            </template>
+            <button v-if="reported(selected)" class="btn btn-quiet btn-sm" :title="`Envoyer le rapport à ${selected.parent}`" @click="handOver(selected.id)">
+              <Send />Transmettre
+            </button>
             <button class="btn btn-ghost btn-sm" @click="code(selected.cwd)"><Code />VS Code</button>
             <button class="btn btn-ghost btn-sm" @click="shellHere(selected.cwd)"><Plus />Terminal ici</button>
             <button v-if="selected.agent === 'game' && selected.status !== 'offline'" class="btn btn-quiet btn-sm" @click="playGame(selected.cwd)">

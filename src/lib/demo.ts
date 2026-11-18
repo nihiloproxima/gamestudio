@@ -446,6 +446,34 @@ export const demoApi: Api = {
     s.status = "working";
     return wait(s);
   },
+  sessionInspect(id, kind) {
+    const w = sessions.find((x) => x.id === id)!;
+    const what = w.item ? `${w.item} : ${w.title}` : w.title;
+    const s: Session = {
+      ...w,
+      id: `${id}-${kind}`,
+      title: `${kind === "qa" ? "QA" : "Revue"} de ${what}`,
+      agent: "claude",
+      item: null,
+      created: new Date().toISOString(),
+      status: "working",
+      statusAt: new Date().toISOString(),
+      message: null,
+      parent: id,
+      role: kind,
+      effort: null,
+      workerEffort: null,
+      model: null,
+    };
+    const at = sessions.findIndex((x) => x.id === s.id);
+    if (at >= 0) sessions.splice(at, 1);
+    sessions.push(s);
+    return wait(s, 500);
+  },
+  sessionHandOver(id) {
+    const parent = sessions.find((x) => x.id === id)?.parent;
+    return parent ? wait(parent) : Promise.reject(new Error(`${id} ne relit le travail de personne`));
+  },
   sessionStop(id) {
     sessions.splice(
       sessions.findIndex((s) => s.id === id),

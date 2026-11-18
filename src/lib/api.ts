@@ -53,6 +53,10 @@ const tauriApi = {
   sessionPlay: (project: string, path?: string) => invoke<Session>("session_play", { project, path }),
   sessionResume: (id: string) => invoke<Session>("session_resume", { id }),
   sessionStop: (id: string) => invoke<void>("session_stop", { id }),
+  /** A Claude agent that reviews (`review`) or tests (`qa`) a session's work without changing it. */
+  sessionInspect: (id: string, kind: "review" | "qa") => invoke<Session>("session_inspect", { id, kind }),
+  /** Sends a review or QA agent's report to the agent whose work it looked at; returns that agent's id. */
+  sessionHandOver: (id: string) => invoke<string>("session_hand_over", { id }),
 
   worktrees: (project: string) => invoke<Worktree[]>("worktrees_list", { project }),
   worktreeRemove: (project: string, path: string) => invoke<void>("worktree_remove", { project, path }),

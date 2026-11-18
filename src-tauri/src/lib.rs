@@ -68,6 +68,8 @@ pub fn run() {
             commands::session_play,
             commands::session_resume,
             commands::session_stop,
+            commands::session_inspect,
+            commands::session_hand_over,
             commands::worktrees_list,
             commands::worktree_remove,
             commands::worktree_archive,

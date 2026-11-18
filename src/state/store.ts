@@ -403,6 +403,27 @@ export async function playGame(path?: string) {
   }
 }
 
+/** A review or QA agent on a session's work, shown once started. */
+export async function inspectSession(id: string, kind: "review" | "qa") {
+  try {
+    const s = await api.sessionInspect(id, kind);
+    await refreshSessions();
+    go({ name: "agents", session: s.id });
+  } catch (e) {
+    fail(e, kind === "qa" ? "QA" : "Revue");
+  }
+}
+
+export async function handOver(id: string) {
+  try {
+    const worker = await api.sessionHandOver(id);
+    await refreshSessions();
+    notify(`Rapport transmis à ${worker}`, { action: { label: "Voir", run: () => go({ name: "agents", session: worker }) } });
+  } catch (e) {
+    fail(e, "Transmission");
+  }
+}
+
 export async function resumeSession(id: string) {
   try {
     await api.sessionResume(id);

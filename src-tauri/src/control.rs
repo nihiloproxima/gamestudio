@@ -75,6 +75,10 @@ pub enum Request {
     Peek { session: String, lines: usize },
     /// Ends a session; an agent (`caller`) only ends the sessions it launched.
     Stop { caller: Option<String>, session: String },
+    /// A review or QA agent on `session`'s work (default: the caller's own).
+    Review { caller: Option<String>, session: Option<String>, qa: bool, context: String, effort: Option<String> },
+    /// A review or QA agent's report.
+    Report { session: String },
     Sync,
     Hook { session: String, event: String, payload: Value },
 }
@@ -319,6 +323,12 @@ fn dispatch(app: &AppHandle, req: Request) -> Result<Value, String> {
             sessions::stop(app, &session)?;
             Ok(json!(session))
         }
+        Request::Review { caller, session, qa, context, effort } => {
+            let target = session.or_else(|| caller.clone()).ok_or("Précise la session dont relire le travail")?;
+            let kind = if qa { "qa" } else { "review" };
+            Ok(json!(sessions::inspect(app, &target, kind, &context, effort.as_deref(), caller.as_deref())?))
+        }
+        Request::Report { session } => Ok(json!(sessions::report(&session)?)),
         Request::Sync => Ok(json!(sync::now()?)),
         Request::Hook { session, event, payload } => {
             sessions::hook(app, &session, &event, &payload);

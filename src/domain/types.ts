@@ -116,7 +116,7 @@ export interface Session {
   /** The session that launched this one with `studio start`. */
   parent: string | null;
   /** Unattended sessions: the orchestrator, and the agents it launched. A free session's mission otherwise. */
-  role: "orchestrator" | "worker" | "groom" | "brainstorm" | null;
+  role: "orchestrator" | "worker" | "groom" | "brainstorm" | "review" | "qa" | null;
   /** The model the agent runs; its own default when null. */
   model: string | null;
   /** The agent's effort; its own default when null. */

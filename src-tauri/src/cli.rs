@@ -56,6 +56,11 @@ Agents
   studio peek <session> [--lines <n>]        la fin de son écran (60 lignes par défaut)
   studio send <session> <texte>              lui écrit, comme au clavier, et valide
   studio stop <session>                      l'arrête
+  studio review [<session>] [--qa] [--context <texte>] [--effort <niveau>]
+                                             un agent Claude relit (ou, avec --qa, teste) le travail d'une session,
+                                             par défaut le tien, sans rien modifier ; relancé, il remplace le
+                                             précédent
+  studio report <session>                    le rapport rendu par cet agent de revue ou de QA
   studio title <texte>                       (pour un agent) nomme ce sur quoi tu travailles, affiché dans l'app
   studio sync                                synchronise les données avec GitHub maintenant
   studio guide setup|orchestrate             la marche à suivre (pour un agent) : configurer un projet, ou orchestrer
@@ -69,7 +74,7 @@ Agents
 const SETUP_GUIDE: &str = include_str!("guide_setup.md");
 const ORCHESTRATE_GUIDE: &str = include_str!("guide_orchestrate.md");
 
-const SWITCHES: [&str; 6] = ["--all", "--json", "--here", "--dry-run", "--help", "-h"];
+const SWITCHES: [&str; 7] = ["--all", "--json", "--here", "--dry-run", "--qa", "--help", "-h"];
 
 struct Args {
     positional: Vec<String>,
@@ -268,6 +273,14 @@ fn request(args: &Args) -> Result<Option<Request>, String> {
             lines: args.value("--lines").map(|n| n.parse().map_err(|_| "--lines attend un nombre")).transpose()?.unwrap_or(60),
         },
         ("stop", _) => Request::Stop { caller: caller(), session: args.pos(1, "la session")? },
+        ("review", _) => Request::Review {
+            caller: caller(),
+            session: args.positional.get(1).cloned(),
+            qa: args.on("--qa"),
+            context: args.value("--context").unwrap_or_default(),
+            effort: args.value("--effort"),
+        },
+        ("report", _) => Request::Report { session: args.pos(1, "la session de revue ou de QA")? },
         ("title", _) => Request::Title {
             session: caller().ok_or("studio title se lance depuis une session d'agent")?,
             title: args.rest(1, "le titre")?,
@@ -411,6 +424,13 @@ fn print_result(cmd: &str, v: &Value) {
         "send" => println!("Envoyé à {}", v.as_str().unwrap_or("")),
         "peek" => println!("{}", v.as_str().unwrap_or("")),
         "stop" => println!("Session {} arrêtée", v.as_str().unwrap_or("")),
+        "review" => println!(
+            "{} lancée : {} (studio wait {id}, puis studio report {id})",
+            if text(v, "role") == "qa" { "QA" } else { "Revue" },
+            text(v, "id"),
+            id = text(v, "id")
+        ),
+        "report" => println!("{}", v.as_str().unwrap_or("")),
         "title" => println!("Titre de {} changé", v.as_str().unwrap_or("")),
         "sync" => match v.get("error").and_then(Value::as_str) {
             Some(e) => println!("Synchro en erreur : {e}"),
@@ -626,6 +646,12 @@ mod tests {
         assert_eq!(req(&["peek", "fro-1-claude"])["lines"], 60);
         assert_eq!(req(&["peek", "fro-1-claude", "--lines", "20"])["lines"], 20);
         assert_eq!(req(&["stop", "fro-1-claude"])["cmd"], "stop");
+        let own = req(&["review"]);
+        assert_eq!((own["cmd"].as_str(), own["session"].is_null(), own["qa"].as_bool()), (Some("review"), true, Some(false)));
+        let qa = req(&["review", "fro-1-claude", "--qa", "--context", "Le menu pause surtout"]);
+        assert_eq!((qa["session"].as_str(), qa["qa"].as_bool(), qa["context"].as_str()), (Some("fro-1-claude"), Some(true), Some("Le menu pause surtout")));
+        assert_eq!(req(&["report", "fro-1-claude-2"])["session"], "fro-1-claude-2");
+        assert!(request(&args(&["report"])).is_err());
         assert!(request(&args(&["send", "fro-1-claude"])).is_err());
         assert!(request(&args(&["peek", "fro-1-claude", "--lines", "beaucoup"])).is_err());
     }

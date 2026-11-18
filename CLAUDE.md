@@ -79,6 +79,12 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   An agent sends to or stops only its own children, and never types into a session waiting on the user. The Stop
   hook's `last_assistant_message` becomes the session's `message`; SessionStart only records the Claude session id
   (a mid-turn compaction no longer looks idle).
+- **Review and QA** (`sessions::inspect`, `studio review [--qa]`, "Relire" / "Tester" on a session): a Claude
+  session with role `review` or `qa` in the reviewed session's directory, `parent` = that session, in auto mode with
+  the edit tools and git / `gh pr` writes denied (`READ_ONLY_DENIED`); a new one replaces the last of its kind. Its
+  Stop hook's `last_assistant_message` is kept whole in `~/.studio/reports/<id>.md` (`studio report`), and
+  "Transmettre" (`sessions::hand_over`) tells the reviewed agent where to read it. The base it diffs against is the
+  orchestrator's branch for a worker, else the project's base.
 - **Links** between items and work are by naming: a branch or PR title containing `JEU-12` belongs to JEU-12
   (`src/lib/links.ts`). Default branch names start with the lowercase id.
 - **Worktrees** (`worktrees.rs`): read from `git worktree list`; created under `~/.studio/worktrees`; removal

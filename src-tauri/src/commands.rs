@@ -182,6 +182,18 @@ pub async fn session_resume(app: AppHandle, id: String) -> Result<sessions::Sess
     blocking(move || sessions::resume(&app, &id)).await
 }
 
+/// A review (`review`) or QA (`qa`) agent on a session's work.
+#[tauri::command]
+pub async fn session_inspect(app: AppHandle, id: String, kind: String) -> Result<sessions::Session, String> {
+    blocking(move || sessions::inspect(&app, &id, &kind, "", None, None)).await
+}
+
+/// Hands a review or QA agent's report to the agent whose work it looked at; returns that agent's id.
+#[tauri::command]
+pub async fn session_hand_over(app: AppHandle, id: String) -> Result<String, String> {
+    blocking(move || sessions::hand_over(&app, &id)).await
+}
+
 #[tauri::command]
 pub async fn session_stop(app: AppHandle, id: String) -> Result<(), String> {
     blocking(move || sessions::stop(&app, &id)).await

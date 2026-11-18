@@ -286,6 +286,42 @@ risquent de casser.\n\
 - Les arbitrages reviennent à l'utilisateur : pose-les franchement, propose, ne décide pas à sa place.\n\
 - Termine par un bilan : les pistes proposées, celle que tu recommandes et pourquoi.\n";
 
+/// Told to a review agent: look at a branch's work, report, change nothing.
+const REVIEW_RULES: &str = "---\nTu relis ce travail sans le modifier : tu ne peux ni éditer de fichier ni écrire dans \
+git, et tu n'en as pas besoin.\n\
+- Lis le diff : `git diff {base}...HEAD`, plus ce qui n'est pas commité (`git status`, `git diff`). Lis autour ce qu'il \
+faut pour juger, et les règles du dépôt (CLAUDE.md, AGENTS.md…).\n\
+- Cherche ce qui est faux : bugs, cas oubliés, régressions, ce qui contredit la consigne ou les règles du dépôt, \
+tests manquants là où ils comptent. Lance les tests et le build s'ils sont rapides.\n\
+- Ne signale que ce que tu as vérifié. Pour chaque point : le fichier et la ligne, ce qui se passe, pourquoi c'est \
+faux, la correction que tu proposes. Les détails de style seulement s'ils gênent vraiment.\n\
+- Ton dernier message est ton rapport, transmis tel quel à l'agent qui a fait le travail : les points du plus grave \
+au moins grave, puis ton verdict (prêt à fusionner, ou pas encore et pourquoi). Rien d'autre après.\n";
+
+/// Told to a QA agent: run the work and check it behaves, change nothing.
+const QA_RULES: &str = "---\nTu testes ce travail sans le modifier : tu ne peux ni éditer de fichier ni écrire \
+dans git, et tu n'en as pas besoin.\n\
+- Comprends ce qui doit marcher : la consigne, le diff (`git diff {base}...HEAD`), les règles du dépôt (CLAUDE.md, \
+AGENTS.md…) et ses critères d'acceptation s'il en a.\n\
+- Écris le guide de test : les étapes, et ce qu'on doit voir à chacune.\n\
+- Exécute tout ce qui s'automatise : tests, build, lancement du projet{run}, requêtes, captures d'écran. Ce que tu \
+crées pour tester (données, fichiers) va dans un dossier temporaire, jamais dans le dépôt.\n\
+- Ton dernier message est ton rapport, transmis tel quel à l'agent qui a fait le travail : ce qui marche, ce qui \
+casse (étapes pour le reproduire, ce que tu attendais, ce que tu as vu), puis ce qui reste à vérifier à la main. \
+Rien d'autre après.\n";
+
+/// What a review or QA agent may not do: they look at the work, they never change it.
+const READ_ONLY_DENIED: [&str; 19] = [
+    "Edit", "Write", "NotebookEdit", "Bash(git add:*)", "Bash(git commit:*)", "Bash(git push:*)", "Bash(git merge:*)",
+    "Bash(git rebase:*)", "Bash(git reset:*)", "Bash(git checkout:*)", "Bash(git switch:*)", "Bash(git restore:*)",
+    "Bash(git stash:*)", "Bash(git cherry-pick:*)", "Bash(gh pr create:*)", "Bash(gh pr merge:*)", "Bash(gh pr edit:*)",
+    "Bash(gh pr review:*)", "Bash(gh pr comment:*)",
+];
+
+fn inspects(role: Option<&str>) -> bool {
+    matches!(role, Some("review" | "qa"))
+}
+
 fn brief(
     project: &store::Project,
     item: Option<&store::Item>,
@@ -352,6 +388,10 @@ fn claude_flags(role: Option<&str>, model: Option<&str>, effort: Option<&str>) -
     }
     if role.is_some() {
         flags += " --permission-mode auto";
+    }
+    if inspects(role) {
+        let denied: Vec<String> = READ_ONLY_DENIED.iter().map(|t| paths::shell_quote(t)).collect();
+        flags += &format!(" --disallowedTools {}", denied.join(" "));
     }
     flags
 }
@@ -766,6 +806,7 @@ pub fn stop(app: &AppHandle, id: &str) -> Result<(), String> {
     records.retain(|s| s.id != id);
     save(&records);
     drop(records);
+    let _ = std::fs::remove_file(report_file(id));
     changed(app);
     Ok(())
 }
@@ -805,9 +846,16 @@ pub fn hook(app: &AppHandle, id: &str, event: &str, payload: &Value) {
     };
     let mut moved = false;
     let mut now_waiting = None;
+    let mut report = None;
     update(id, |s| {
-        // A worker idle at its prompt waits on its orchestrator, not on the user: only a permission turns it amber.
-        if s.role.as_deref() == Some("worker") && text("notification_type").as_deref() == Some("idle_prompt") {
+        // A review or QA agent's last word is its report, kept whole for the agent whose work it looked at.
+        if inspects(s.role.as_deref()) && event == "stop" {
+            report = text("last_assistant_message").filter(|m| !m.trim().is_empty());
+        }
+        // A worker idle at its prompt waits on its orchestrator, not on the user, and a review or QA agent has
+        // handed in its report: only a permission turns them amber.
+        let unattended = matches!(s.role.as_deref(), Some("worker" | "review" | "qa"));
+        if unattended && text("notification_type").as_deref() == Some("idle_prompt") {
             return;
         }
         // A tool call while waiting means the permission was granted; otherwise only real transitions count.
@@ -831,9 +879,112 @@ pub fn hook(app: &AppHandle, id: &str, event: &str, payload: &Value) {
     if moved {
         changed(app);
     }
+    if let Some(text) = report {
+        if let Err(e) = paths::write_atomic(&report_file(id), &text) {
+            eprintln!("{e}");
+        }
+    }
     if let Some(session) = now_waiting {
         notify_waiting(app, &session);
     }
+}
+
+fn report_file(id: &str) -> PathBuf {
+    paths::studio_dir().join("reports").join(format!("{id}.md"))
+}
+
+/// A review or QA agent's last report.
+pub fn report(id: &str) -> Result<String, String> {
+    let session = find(id)?;
+    if !inspects(session.role.as_deref()) {
+        return Err(format!("{id} n'est pas un agent de revue ou de QA"));
+    }
+    std::fs::read_to_string(report_file(id)).map_err(|_| format!("{id} n'a pas encore rendu de rapport"))
+}
+
+/// Starts a Claude agent that reviews (`review`) or tests (`qa`) the work of session `target`, in its directory,
+/// without the right to change anything; it replaces the last one of that kind. The person, the agent itself
+/// (`caller` = `target`) or the agent that launched it may ask.
+pub fn inspect(app: &AppHandle, target: &str, kind: &str, context: &str, effort: Option<&str>, caller: Option<&str>) -> Result<Session, String> {
+    if caller != Some(target) {
+        driven(target, caller)?;
+    }
+    let worker = find(target)?;
+    if !matches!(worker.agent.as_str(), "claude" | "codex" | "opencode") || inspects(worker.role.as_deref()) {
+        return Err(format!("{target} n'est pas un agent dont on relit le travail"));
+    }
+    let (label, rules) = match kind {
+        "review" => ("Revue", REVIEW_RULES),
+        "qa" => ("QA", QA_RULES),
+        other => return Err(format!("Inconnu : {other} (au choix : review, qa)")),
+    };
+    let project = store::project(&worker.project)?;
+    // An orchestrator's agent builds on the orchestrator's branch: its own work is what it adds there.
+    let base = match worker.parent.as_deref().map(find) {
+        Some(Ok(p)) if p.role.as_deref() == Some("orchestrator") => p.branch.unwrap_or_else(|| project.meta.base.clone()),
+        _ => project.meta.base.clone(),
+    };
+    for old in list().into_iter().filter(|s| s.parent.as_deref() == Some(target) && s.role.as_deref() == Some(kind)) {
+        stop(app, &old.id)?;
+    }
+
+    let what = match &worker.item {
+        Some(i) => format!("{i} : {}", worker.title),
+        None => worker.title.clone(),
+    };
+    let mut prompt = format!(
+        "Tu fais la {} du travail de l'agent {} ({what}) sur {}, dans ce dossier. La base est {base}.\n\n",
+        if kind == "review" { "revue" } else { "QA" },
+        worker.id,
+        worker.branch.as_deref().map_or("le dépôt principal".to_string(), |b| format!("la branche {b}")),
+    );
+    if let Some(item) = worker.item.as_deref().and_then(|i| store::item(i).ok()) {
+        if !item.body.trim().is_empty() {
+            prompt += &format!("La fiche {} :\n\n{}\n\n", item.id, item.body.trim());
+        }
+    }
+    if !context.trim().is_empty() {
+        prompt += &format!("{}\n\n", context.trim());
+    }
+    let run = match project.meta.run.trim() {
+        "" => String::new(),
+        cmd => format!(" (`{cmd}`)"),
+    };
+    prompt += &rules.replace("{base}", &base).replace("{run}", &run);
+
+    let req = StartRequest {
+        project: worker.project.clone(),
+        item: None,
+        agent: "claude".into(),
+        place: "path".into(),
+        branch: worker.branch.clone(),
+        path: Some(worker.cwd.clone()),
+        prompt,
+        preset: None,
+        title: Some(format!("{label} de {what}")),
+        parent: None,
+        role: Some(kind.into()),
+        model: None,
+        effort: effort.map(str::to_owned),
+        worker_effort: None,
+    };
+    let session = start(app, req)?;
+    update(&session.id, |s| s.parent = Some(target.to_string()));
+    find(&session.id)
+}
+
+/// Hands a review or QA report to the agent whose work it looked at, as a message in its terminal.
+pub fn hand_over(app: &AppHandle, id: &str) -> Result<String, String> {
+    report(id)?;
+    let session = find(id)?;
+    let worker = session.parent.ok_or_else(|| format!("{id} ne relit le travail de personne"))?;
+    let what = if session.role.as_deref() == Some("qa") { "Le rapport de QA" } else { "Le rapport de revue" };
+    let text = format!(
+        "{what} de {id} est dans {}. Lis-le, corrige ce qui doit l'être, et dis ce que tu laisses de côté et pourquoi.",
+        report_file(id).display()
+    );
+    send(app, &worker, &text, None)?;
+    Ok(worker)
 }
 
 /// A notification with a sound when an agent starts waiting on the user while the app is in the background; in front,
@@ -916,6 +1067,16 @@ mod tests {
         assert!(brainstorm.contains("Le combat.\n\n---\n"));
         assert!(brainstorm.contains("`studio idea"));
         assert!(brainstorm.contains("ne décide pas à sa place"));
+    }
+
+    #[test]
+    fn review_and_qa_agents_cannot_change_the_work() {
+        let flags = claude_flags(Some("review"), None, None);
+        assert!(flags.starts_with(" --permission-mode auto --disallowedTools 'Edit' 'Write' 'NotebookEdit'"));
+        assert!(flags.contains("'Bash(git commit:*)'") && flags.contains("'Bash(gh pr merge:*)'"));
+        assert!(claude_flags(Some("qa"), None, None).contains("--disallowedTools"));
+        assert!(!claude_flags(Some("worker"), None, None).contains("--disallowedTools"));
+        assert!(REVIEW_RULES.contains("{base}") && QA_RULES.contains("{run}"));
     }
 
     #[test]
