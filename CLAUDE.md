@@ -1,4 +1,4 @@
-# Gamestudio
+# Studio
 
 A macOS workbench for developing games with coding agents: roadmap and objectives, tasks, bugs, ideas to triage, the
 agent sessions and worktrees working on them, assets and PRs. One game at a time, picked with the switcher;
@@ -21,36 +21,36 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
 - `pnpm app:install`: local release build to /Applications, `studio` CLI in ~/.local/bin, skill in ~/.claude/skills
   (`scripts/install.sh` without `--source` installs the latest GitHub release instead)
 - `pnpm release X.Y.Z` (from main): bumps package.json, tauri.conf.json, Cargo.toml, tags `vX.Y.Z` and pushes; the
-  Release workflow (`.github/workflows/release.yml`) builds the app and publishes `Gamestudio_X.Y.Z_aarch64.app.tar.gz`
+  Release workflow (`.github/workflows/release.yml`) builds the app and publishes `Studio_X.Y.Z_aarch64.app.tar.gz`
 
 ## Architecture (decided)
 
 - **Tauri 2 + Vue 3/TS**, no UI framework: tokens in `src/styles/base.css` + scoped CSS. `src/domain/types.ts` is the
   contract with the Rust core (`src-tauri/src`); `src/state/store.ts` holds state and actions; `commands.rs` is the IPC
   surface (blocking work off the main thread).
-- **Data = files on a `gamestudio` branch of each game's own repo** (orphan: no history shared with the code), checked
-  out as a small separate clone in `~/.gamestudio/data/<project>/`, never in the game's working tree: `project.md`,
+- **Data = files on a `studio` branch of each game's own repo** (orphan: no history shared with the code), checked
+  out as a small separate clone in `~/.studio/data/<project>/`, never in the game's working tree: `project.md`,
   `milestones/<slug>.md`, `items/<KEY>-<n>.md`, Markdown with a TOML front matter (`store.rs`). Re-read on every
   request (no cache), every read/write under `store::lock()`, atomic writes. One file per item keeps merges between
-  machines line-level. The repo's path on this machine is in `~/.gamestudio/repos.json`, never synced.
+  machines line-level. The repo's path on this machine is in `~/.studio/repos.json`, never synced.
 - **Sync** (`sync.rs`): one worker thread, for each game, commits, fetches only the data branch, rebases onto
-  `origin/gamestudio` (`-X theirs`: this machine's line wins where both edited the same line; a notice names the
+  `origin/studio` (`-X theirs`: this machine's line wins where both edited the same line; a notice names the
   files), pushes. A few seconds after a write and every 3 minutes. A rebase that still fails is aborted and reported;
   nothing is overwritten. The data clone's `origin` is the game's `origin` (or the game repo itself when it has
   none). **Adding a game** (`sync::attach`: onboarding, Settings, `studio project add`) clones the data branch when
   the repo has one (another machine), else starts it; an unreachable remote is an error, never a second history. A
   new project's GitHub repo and base branch are read from its repo when left blank (`worktrees::fill_from_repo`).
-- **Machine-local** (`~/.gamestudio/`, not synced): `sessions.json`, `studio.sock`, `worktrees/<project>/<branch>`,
+- **Machine-local** (`~/.studio/`, not synced): `sessions.json`, `studio.sock`, `worktrees/<project>/<branch>`,
   `tmux.conf`, `claude-hooks.json`, `briefs/`, `bin/studio` (link to the running binary).
 - **Sessions** (`sessions.rs`): tmux on a private server (`tmux -L studio`), shown through xterm.js, so agents outlive
-  the app. Claude runs with `--settings ~/.gamestudio/claude-hooks.json` (hooks call `studio hook …` → status
+  the app. Claude runs with `--settings ~/.studio/claude-hooks.json` (hooks call `studio hook …` → status
   working/waiting/idle, Claude session id for `--resume`), Codex with `-c notify=[…]`. OpenCode gets a plugin
-  (`opencode_plugin.js`, written to `~/.gamestudio/opencode/plugins`) that reports `studio hook opencode` from its
+  (`opencode_plugin.js`, written to `~/.studio/opencode/plugins`) that reports `studio hook opencode` from its
   session events; it is loaded through `OPENCODE_CONFIG_DIR`, with `--standalone` so the server running it sees the
   session's environment. Models and efforts come from each agent's CLI (`models.rs`: `codex debug models`,
   `opencode models` with its cached catalog, cached 5 min; Claude's aliases and efforts are fixed), and a session's
   `model` and `effort` are checked against them (`sessions::choice`). Sessions get `STUDIO_SESSION`,
-  `STUDIO_PROJECT`, `STUDIO_ITEM`, `STUDIO_AGENT` and `~/.gamestudio/bin` first on PATH. tmux takes a new session's
+  `STUDIO_PROJECT`, `STUDIO_ITEM`, `STUDIO_AGENT` and `~/.studio/bin` first on PATH. tmux takes a new session's
   PATH from the creating client, so `tmux::new_session` (and `respawn`) set it on the client too. They also get
   `CLAUDE_CODE_SCROLL_SPEED=3`: Claude Code makes up for xterm.js's damped wheel only when it recognizes xterm.js,
   which tmux hides from it.
@@ -77,7 +77,7 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
   (a mid-turn compaction no longer looks idle).
 - **Links** between items and work are by naming: a branch or PR title containing `JEU-12` belongs to JEU-12
   (`src/lib/links.ts`). Default branch names start with the lowercase id.
-- **Worktrees** (`worktrees.rs`): read from `git worktree list`; created under `~/.gamestudio/worktrees`; removal
+- **Worktrees** (`worktrees.rs`): read from `git worktree list`; created under `~/.studio/worktrees`; removal
   refused while dirty or with a live session (branch kept).
 - **Updates** (`update.rs`): an installed app (running from a `.app`) asks `gh release view` on the repo in
   Cargo.toml's `repository` 20 s after start and every 6 h; a newer `vX.Y.Z` is downloaded with `gh` (works on a

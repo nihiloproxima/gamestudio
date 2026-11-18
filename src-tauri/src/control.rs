@@ -1,4 +1,4 @@
-//! The app side of the `studio` CLI: one JSON request per connection on ~/.gamestudio/studio.sock, answered by one
+//! The app side of the `studio` CLI: one JSON request per connection on ~/.studio/studio.sock, answered by one
 //! JSON line. Every change goes through the same code as the UI and tells the UI to refresh.
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ pub fn socket_path() -> PathBuf {
     paths::studio_dir().join("studio.sock")
 }
 
-/// Another Gamestudio answers on the socket. Two instances would race on sessions.json, so the second must not start.
+/// Another Studio answers on the socket. Two instances would race on sessions.json, so the second must not start.
 pub fn already_running() -> bool {
     std::os::unix::net::UnixStream::connect(socket_path()).is_ok()
 }

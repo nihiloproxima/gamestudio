@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Gamestudio",
+  "productName": "Studio",
   "version": "0.2.1",
-  "identifier": "dev.gamestudio.app",
+  "identifier": "dev.studio.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1430",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Gamestudio",
+        "title": "Studio",
         "width": 1480,
         "height": 920,
         "minWidth": 1100,

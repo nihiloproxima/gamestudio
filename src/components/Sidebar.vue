@@ -99,7 +99,7 @@ function goTo(id: RouteName) {
           <kbd>⌥{{ store.projects.findIndex((p) => p.id === option.id) + 1 }}</kbd>
         </template>
       </PickMenu>
-      <button v-if="project" class="play" title="Lancer le jeu (P)" :disabled="!project.present" @click="playGame()">
+      <button v-if="project" class="play" title="Lancer le projet (P)" :disabled="!project.present" @click="playGame()">
         <Gamepad2 :size="16" />
       </button>
     </div>
@@ -154,7 +154,7 @@ function goTo(id: RouteName) {
     <button v-if="store.update?.state === 'ready'" class="update" @click="restartApp">
       <RotateCcw :size="14" />
       <span>
-        <strong>Gamestudio {{ store.update.latest?.replace(/^v/, "") }} est prête</strong>
+        <strong>Studio {{ store.update.latest?.replace(/^v/, "") }} est prêt</strong>
         <span>Redémarrer pour l'utiliser</span>
       </span>
     </button>

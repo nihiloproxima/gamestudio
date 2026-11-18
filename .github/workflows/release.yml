@@ -36,11 +36,11 @@ jobs:
       - name: Package
         run: |
           version=${GITHUB_REF_NAME#v}
-          archive="Gamestudio_${version}_aarch64.app.tar.gz"
-          tar -czf "$archive" -C src-tauri/target/release/bundle/macos Gamestudio.app
+          archive="Studio_${version}_aarch64.app.tar.gz"
+          tar -czf "$archive" -C src-tauri/target/release/bundle/macos Studio.app
           shasum -a 256 "$archive" > SHA256SUMS
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" Gamestudio_*.app.tar.gz SHA256SUMS --title "Gamestudio $GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" Studio_*.app.tar.gz SHA256SUMS --title "Studio $GITHUB_REF_NAME" --generate-notes

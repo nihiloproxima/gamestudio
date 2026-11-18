@@ -29,7 +29,7 @@ const tauriApi = {
 
   projects: () => invoke<Project[]>("projects_list"),
   projectSave: (id: string, meta: ProjectMeta, vision: string) => invoke<Project>("project_save", { id, meta, vision }),
-  /** Adds a game from its repo; its data comes back if the repo already has a `gamestudio` branch. */
+  /** Adds a game from its repo; its data comes back if the repo already has a `studio` branch. */
   projectAttach: (meta: ProjectMeta) => invoke<Project>("project_attach", { meta }),
 
   milestones: (project: string) => invoke<Milestone[]>("milestones_list", { project }),

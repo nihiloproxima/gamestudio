@@ -5,10 +5,10 @@ pub fn home() -> PathBuf {
     PathBuf::from(std::env::var_os("HOME").expect("HOME is set"))
 }
 
-/// `~/.gamestudio`: the synced data repo in `data/`, plus what only makes sense on this machine (sessions, socket,
+/// `~/.studio`: the synced data repo in `data/`, plus what only makes sense on this machine (sessions, socket,
 /// worktrees, tmux.conf).
 pub fn studio_dir() -> PathBuf {
-    home().join(".gamestudio")
+    home().join(".studio")
 }
 
 pub fn data_dir() -> PathBuf {

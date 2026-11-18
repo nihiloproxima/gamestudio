@@ -1,5 +1,5 @@
-// Reports this OpenCode session's status to Gamestudio, through `studio hook opencode`. Written to the config
-// directory Gamestudio gives its own OpenCode sessions, and only those: the app's session id comes from the environment.
+// Reports this OpenCode session's status to Studio, through `studio hook opencode`. Written to the config
+// directory Studio gives its own OpenCode sessions, and only those: the app's session id comes from the environment.
 import { execFile } from "node:child_process";
 
 const STUDIO = __STUDIO_EXE__;
@@ -57,7 +57,7 @@ function handle(event) {
 }
 
 export default {
-  id: "gamestudio",
+  id: "studio",
   setup(ctx) {
     if (!session) return;
     (async () => {

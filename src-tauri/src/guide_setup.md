@@ -1,16 +1,16 @@
-# Configurer un jeu dans Gamestudio
+# Configurer un projet dans Studio
 
-Tu prépares le suivi d'un jeu dans Gamestudio : réglages du projet, cap (vision et objectifs), jalons de la
-roadmap, tâches, bugs et idées, chacun dans le bon état. Tu travailles depuis le dépôt du jeu (dossier courant) avec la
-commande `studio`. Tu ne modifies **jamais** le dépôt du jeu : tu le lis, tu écris seulement dans Gamestudio.
+Tu prépares le suivi d'un projet dans Studio : réglages du projet, cap (vision et objectifs), jalons de la
+roadmap, tâches, bugs et idées, chacun dans le bon état. Tu travailles depuis le dépôt du projet (dossier courant) avec la
+commande `studio`. Tu ne modifies **jamais** le dépôt du projet : tu le lis, tu écris seulement dans Studio.
 
-Règle d'or : **tu n'écris rien dans Gamestudio avant que l'utilisateur ait validé l'aperçu.** Inventaire, questions, aperçu,
+Règle d'or : **tu n'écris rien dans Studio avant que l'utilisateur ait validé l'aperçu.** Inventaire, questions, aperçu,
 puis import.
 
 ## 1. Ce qui existe déjà
 
 ```sh
-studio project          # réglages actuels (si le projet n'existe pas : voir « Nouveau jeu » plus bas)
+studio project          # réglages actuels (si le projet n'existe pas : voir « Nouveau projet » plus bas)
 studio milestones
 studio items --all
 ```
@@ -19,9 +19,9 @@ S'il y a déjà des jalons ou des éléments, tu complètes : l'import ignore ce
 
 ## 2. Inventaire du dépôt (lecture seule)
 
-Lis, sans tout dérouler, ce qui dit où en est le jeu :
+Lis, sans tout dérouler, ce qui dit où en est le projet :
 
-- `README*`, `CLAUDE.md`, `AGENTS.md` : nature du jeu, moteur, conventions, où sont les plans.
+- `README*`, `CLAUDE.md`, `AGENTS.md` : nature du projet, stack, conventions, où sont les plans.
 - Les documents de plan et de design : `PLAN.md`, `GDD.md`, `ROADMAP*`, `doc/`, `docs/`, `TODO*`, `CHANGELOG*`.
   Repère les étapes, lots, jalons, cases cochées (`- [x]`) ou non, « Fait quand », « État actuel », les idées « pour
   plus tard », les bugs connus.
@@ -31,7 +31,7 @@ Lis, sans tout dérouler, ce qui dit où en est le jeu :
 - Les dossiers d'assets (images, sons, modèles) : là où il y en a vraiment, relatifs au dépôt.
 - Ce qu'il faut pour travailler dans un worktree neuf (`pnpm install`, rien pour Godot…), et la branche d'intégration
   (main, next…).
-- La commande qui lance le jeu depuis le dépôt (`cargo run`, `love .`…) : rien pour un projet Godot, que Gamestudio
+- La commande qui lance le projet depuis le dépôt (`cargo run`, `love .`…) : rien pour un projet Godot, que Studio
   reconnaît seul.
 
 ## 3. Les questions à l'utilisateur
@@ -116,18 +116,18 @@ relancer après correction est sans risque (ce qui existe déjà est ignoré). P
 ## 6. Pour finir
 
 Termine par un court bilan : ce qui a été créé, ce qui reste à décider, et ce que l'utilisateur devrait vérifier dans l'app.
-Si les docs du dépôt (CLAUDE.md, PLAN.md) font double emploi avec Gamestudio, propose-lui de les faire pointer vers
-`studio` (« les tâches vivent dans Gamestudio : `studio items` »), sans le faire toi-même.
+Si les docs du dépôt (CLAUDE.md, PLAN.md) font double emploi avec Studio, propose-lui de les faire pointer vers
+`studio` (« les tâches vivent dans Studio : `studio items` »), sans le faire toi-même.
 
-## Nouveau jeu
+## Nouveau projet
 
-Si `studio project` répond que le dossier n'appartient à aucun projet, demande à l'utilisateur le nom du jeu et une
-clé de 2 à 5 majuscules pour numéroter ses éléments (JEU, RPG…), puis, avec son accord, depuis le dépôt du jeu :
+Si `studio project` répond que le dossier n'appartient à aucun projet, demande à l'utilisateur le nom du projet et une
+clé de 2 à 5 majuscules pour numéroter ses éléments (JEU, RPG…), puis, avec son accord, depuis le dépôt du projet :
 
 ```sh
 studio project add --name "Nom" --key CLE
 ```
 
-Le suivi vivra sur une branche `gamestudio` du dépôt, sans lien avec l'historique du code. Si cette branche existe
+Le suivi vivra sur une branche `studio` du dépôt, sans lien avec l'historique du code. Si cette branche existe
 déjà (un autre Mac), ses données reviennent telles quelles : reprends alors à l'étape 1 pour compléter, pas pour
 refaire.

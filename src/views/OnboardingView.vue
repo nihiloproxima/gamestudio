@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { GitBranch } from "lucide-vue-next";
 import { attachProject, boot } from "../state/store";
 
-/** First launch: point at a game's repo. If it already holds Gamestudio data, it comes back as it is. */
+/** First launch: point at a game's repo. If it already holds Studio data, it comes back as it is. */
 const name = ref("");
 const key = ref("");
 const path = ref("~/code/");
@@ -41,18 +41,18 @@ async function add() {
       <div class="gem">
         <span style="--c: #ff79c6" /><span style="--c: #8bd5ca" /><span style="--c: #ef9f76" />
       </div>
-      <h1>Gamestudio</h1>
+      <h1>Studio</h1>
       <p class="lead">
-        Roadmap, tâches, idées, agents et assets de tes jeux, au même endroit. Commence par le dépôt git d'un jeu :
-        son suivi vivra sur une branche <code>gamestudio</code> de ce dépôt, à côté du code sans s'y mêler.
+        Roadmap, tâches, idées, agents et assets de tes projets, au même endroit. Commence par le dépôt git d'un projet :
+        son suivi vivra sur une branche <code>studio</code> de ce dépôt, à côté du code sans s'y mêler.
       </p>
 
       <label>
-        <span class="label">Dépôt du jeu sur ce Mac</span>
-        <input v-model="path" class="field code" placeholder="~/code/mon-jeu" spellcheck="false" autofocus />
+        <span class="label">Dépôt du projet sur ce Mac</span>
+        <input v-model="path" class="field code" placeholder="~/code/mon-projet" spellcheck="false" autofocus />
       </label>
       <div class="two">
-        <label><span class="label">Nom</span><input v-model="name" class="field" placeholder="Mon jeu" /></label>
+        <label><span class="label">Nom</span><input v-model="name" class="field" placeholder="Mon projet" /></label>
         <label>
           <span class="label">Clé des éléments</span>
           <input v-model="key" class="field code" maxlength="5" placeholder="JEU" @input="(keyTouched = true), (key = key.toUpperCase())" />
@@ -61,11 +61,11 @@ async function add() {
       <p class="hint">
         <GitBranch :size="14" />
         <span>
-          Le dépôt a déjà une branche <code>gamestudio</code> (un autre Mac) ? Ses données reviennent telles quelles, le nom
-          et la clé ne servent qu'à un nouveau jeu.
+          Le dépôt a déjà une branche <code>studio</code> (un autre Mac) ? Ses données reviennent telles quelles, le nom
+          et la clé ne servent qu'à un nouveau projet.
         </span>
       </p>
-      <button type="submit" class="btn btn-solid" :disabled="busy || !ready">{{ busy ? "Ajout…" : "Ajouter le jeu" }}</button>
+      <button type="submit" class="btn btn-solid" :disabled="busy || !ready">{{ busy ? "Ajout…" : "Ajouter le projet" }}</button>
     </form>
   </div>
 </template>

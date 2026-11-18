@@ -42,7 +42,7 @@ pub async fn project_save(app: AppHandle, id: String, meta: store::ProjectMeta, 
     .await
 }
 
-/// Adds a game from its repo; its data comes back if the repo already has a `gamestudio` branch.
+/// Adds a game from its repo; its data comes back if the repo already has a `studio` branch.
 #[tauri::command]
 pub async fn project_attach(app: AppHandle, meta: store::ProjectMeta) -> Result<store::Project, String> {
     blocking(move || {
@@ -139,7 +139,7 @@ pub async fn agent_options(agent: String) -> Result<models::Options, String> {
     blocking(move || models::options(&agent)).await
 }
 
-/// A Claude session in the project's repo that scans it, asks the user, and fills Gamestudio once they agree.
+/// A Claude session in the project's repo that scans it, asks the user, and fills Studio once they agree.
 #[tauri::command]
 pub async fn session_setup(app: AppHandle, project: String) -> Result<sessions::Session, String> {
     blocking(move || {
@@ -152,7 +152,7 @@ pub async fn session_setup(app: AppHandle, project: String) -> Result<sessions::
             path: None,
             prompt: sessions::SETUP_PROMPT.into(),
             preset: None,
-            title: Some("Configuration de Gamestudio".into()),
+            title: Some("Configuration de Studio".into()),
             parent: None,
             role: None,
             model: None,

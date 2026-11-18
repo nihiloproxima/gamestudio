@@ -1,4 +1,4 @@
-//! Projects, milestones and items, one Markdown file each under `~/.gamestudio/data/<project>/`, with a TOML front
+//! Projects, milestones and items, one Markdown file each under `~/.studio/data/<project>/`, with a TOML front
 //! matter. Files are the source of truth: they are re-read on every request, so a `git pull`, a hand edit or another
 //! machine's change shows up without any cache to invalidate. Every read and write holds `DATA_LOCK`, which the sync
 //! also takes while git rewrites the tree.
@@ -198,7 +198,7 @@ fn project_dir(id: &str) -> PathBuf {
     paths::data_dir().join(id)
 }
 
-// Where each game's repo is on this machine, by project id: `~/.gamestudio/repos.json`, never synced.
+// Where each game's repo is on this machine, by project id: `~/.studio/repos.json`, never synced.
 fn registry_file() -> PathBuf {
     paths::studio_dir().join("repos.json")
 }

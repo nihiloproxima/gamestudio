@@ -143,7 +143,7 @@ pub fn check(app: &AppHandle) -> UpdateStatus {
             let _ = app
                 .notification()
                 .builder()
-                .title(format!("Gamestudio {} est installée", tag.trim_start_matches('v')))
+                .title(format!("Studio {} est installé", tag.trim_start_matches('v')))
                 .body("Redémarre l'app pour l'utiliser. Tes agents continuent de tourner.")
                 .show();
             s
@@ -221,8 +221,8 @@ mod tests {
     fn asset_for_this_architecture() {
         let release = json!({ "tagName": "v0.2.0", "assets": [
             { "name": "SHA256SUMS" },
-            { "name": "Gamestudio_0.2.0_x86_64.app.tar.gz" },
-            { "name": "Gamestudio_0.2.0_aarch64.app.tar.gz" },
+            { "name": "Studio_0.2.0_x86_64.app.tar.gz" },
+            { "name": "Studio_0.2.0_aarch64.app.tar.gz" },
         ]});
         let (tag, asset) = pick_asset(&release).unwrap();
         assert_eq!(tag, "v0.2.0");

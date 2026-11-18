@@ -4,6 +4,7 @@ mod commands;
 mod control;
 mod game;
 mod github;
+mod migrate;
 mod models;
 mod paths;
 mod plan;
@@ -21,9 +22,12 @@ pub fn cli(args: Vec<String>) -> i32 {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    if control::already_running() {
-        eprintln!("Gamestudio est déjà ouverte.");
+    if control::already_running() || migrate::legacy_running() {
+        eprintln!("Studio est déjà ouvert.");
         return;
+    }
+    if let Err(e) = migrate::from_gamestudio() {
+        eprintln!("{e}");
     }
     paths::adopt_login_path();
     for prepared in [tmux::write_conf(), sessions::write_hooks(), sessions::write_opencode_plugin(), sessions::link_cli()] {

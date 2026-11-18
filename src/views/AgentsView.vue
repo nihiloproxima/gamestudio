@@ -99,12 +99,12 @@ async function code(path: string) {
 }
 
 async function stop(s: Session) {
-  const what = s.agent === "shell" ? "ce terminal" : s.agent === "game" ? "le jeu" : `l'agent ${s.agent} sur « ${s.title} »`;
+  const what = s.agent === "shell" ? "ce terminal" : s.agent === "game" ? "le projet" : `l'agent ${s.agent} sur « ${s.title} »`;
   if (await confirmAsk(`Arrêter ${what} ? Ce qui tourne dans la session est interrompu.`, "Arrêter")) stopSession(s.id);
 }
 
 const STATUS_TEXT = { waiting: "attend ta réponse", working: "travaille", idle: "au repos", offline: "arrêté" };
-const AGENT_NAME = { claude: "Claude", codex: "Codex", opencode: "OpenCode", shell: "Terminal", game: "Le jeu" };
+const AGENT_NAME = { claude: "Claude", codex: "Codex", opencode: "OpenCode", shell: "Terminal", game: "Le projet" };
 
 function agentName(s: Session) {
   const name = (s.role === "orchestrator" ? "L'orchestrateur" : AGENT_NAME[s.agent]) + (s.effort ? ` en effort ${s.effort}` : "");

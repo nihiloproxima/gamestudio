@@ -10,7 +10,7 @@ use std::time::Duration;
 use crate::control::{socket_path, Context, Request};
 
 const HELP: &str = "\
-studio : le tracker de Gamestudio depuis un terminal (l'app doit être ouverte)
+studio : le tracker de Studio depuis un terminal (l'app doit être ouverte)
 
 Éléments (tâches, bugs, idées)
   studio items [--all] [--status <statut>]   ce qui est ouvert dans le projet (--all : terminé compris)
@@ -32,12 +32,12 @@ Roadmap et projet
   studio milestone set <id> [--title …] [--status …] [--target …] [--goal …] [--order <n>]
   studio project                             les réglages du projet
   studio project set [--name …] [--color …] [--path …] [--github …] [--base …] [--assets a,b] [--setup …]
-                     [--run <commande qui lance le jeu, lue dans le dépôt si vide>] [--vision <texte>]
+                     [--run <commande qui lance le projet, lue dans le dépôt si vide>] [--vision <texte>]
   studio project add [--path <dépôt>] [--name <nom> --key <CLÉ>] [mêmes options]
-                                             suit le jeu du dépôt (par défaut celui du dossier courant) ; ses
-                                             données reviennent si le dépôt a déjà une branche gamestudio, sinon
+                                             suit le projet du dépôt (par défaut celui du dossier courant) ; ses
+                                             données reviennent si le dépôt a déjà une branche studio, sinon
                                              il faut un nom et une clé
-  studio projects                            les jeux suivis
+  studio projects                            les projets suivis
   studio import <plan.json|-> [--dry-run]    importe tout un plan (jalons, éléments, réglages) ; --dry-run montre
                                              ce qui serait créé sans rien écrire. Format : studio guide setup
 
@@ -58,7 +58,7 @@ Agents
   studio stop <session>                      l'arrête
   studio title <texte>                       (pour un agent) nomme ce sur quoi tu travailles, affiché dans l'app
   studio sync                                synchronise les données avec GitHub maintenant
-  studio guide setup|orchestrate             la marche à suivre (pour un agent) : configurer un jeu, ou orchestrer
+  studio guide setup|orchestrate             la marche à suivre (pour un agent) : configurer un projet, ou orchestrer
                                              des agents sur sa roadmap
 
   Le projet se déduit du dossier courant (dépôt ou worktree) ; sinon --project <nom|clé>.
@@ -416,7 +416,7 @@ fn print_result(cmd: &str, v: &Value) {
             Some(e) => println!("Synchro en erreur : {e}"),
             None => {
                 let remotes = v["remotes"].as_object().map(|m| m.len()).unwrap_or(0);
-                println!("Données synchronisées ({remotes} jeu{} relié{} à son dépôt).", if remotes > 1 { "x" } else { "" }, if remotes > 1 { "s" } else { "" });
+                println!("Données synchronisées ({remotes} projet{} relié{} à son dépôt).", if remotes > 1 { "s" } else { "" }, if remotes > 1 { "s" } else { "" });
             }
         },
         _ => {}
@@ -425,12 +425,12 @@ fn print_result(cmd: &str, v: &Value) {
 
 fn send(req: &Request) -> Result<Value, String> {
     let mut stream =
-        UnixStream::connect(socket_path()).map_err(|_| "Gamestudio n'est pas ouverte : lance l'app, puis relance la commande.")?;
+        UnixStream::connect(socket_path()).map_err(|_| "Studio n'est pas ouvert : lance l'app, puis relance la commande.")?;
     let line = serde_json::to_string(req).expect("requests serialize");
-    writeln!(stream, "{line}").map_err(|_| "Gamestudio n'a pas accepté la commande.")?;
+    writeln!(stream, "{line}").map_err(|_| "Studio n'a pas accepté la commande.")?;
     let mut reply = String::new();
     BufReader::new(stream).read_line(&mut reply).map_err(|e| e.to_string())?;
-    let reply: Value = serde_json::from_str(&reply).map_err(|_| "Gamestudio a fermé la connexion sans répondre.")?;
+    let reply: Value = serde_json::from_str(&reply).map_err(|_| "Studio a fermé la connexion sans répondre.")?;
     match (reply.get("ok"), reply.get("error")) {
         (Some(v), _) => Ok(v.clone()),
         (_, Some(e)) => Err(e.as_str().unwrap_or("Erreur inconnue").to_string()),
@@ -525,7 +525,7 @@ pub fn main(raw: Vec<String>) -> i32 {
                 Some("setup") => print!("{SETUP_GUIDE}"),
                 Some("orchestrate") => print!("{ORCHESTRATE_GUIDE}"),
                 _ => {
-                    eprintln!("studio guide setup : configurer un jeu\nstudio guide orchestrate : orchestrer des agents");
+                    eprintln!("studio guide setup : configurer un projet\nstudio guide orchestrate : orchestrer des agents");
                     return 2;
                 }
             }
@@ -545,7 +545,7 @@ pub fn main(raw: Vec<String>) -> i32 {
             Ok(()) => 0,
             Err(e) => {
                 eprintln!("{e}");
-                if e.starts_with("Gamestudio n'est pas ouverte") { 3 } else { 1 }
+                if e.starts_with("Studio n'est pas ouvert") { 3 } else { 1 }
             }
         };
     }
@@ -571,7 +571,7 @@ pub fn main(raw: Vec<String>) -> i32 {
         }
         Err(e) => {
             eprintln!("{e}");
-            if e.starts_with("Gamestudio n'est pas ouverte") { 3 } else { 1 }
+            if e.starts_with("Studio n'est pas ouvert") { 3 } else { 1 }
         }
     }
 }

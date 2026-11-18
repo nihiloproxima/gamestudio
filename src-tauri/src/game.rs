@@ -13,12 +13,12 @@ pub fn command(project: &store::Project, dir: &Path) -> Result<String, String> {
     }
     let Some(folder) = godot_project(dir) else {
         return Err(format!(
-            "Gamestudio ne sait pas lancer {} : indique la commande qui le lance dans les réglages",
+            "Studio ne sait pas lancer {} : indique la commande qui le lance dans les réglages",
             project.meta.name
         ));
     };
     let godot = godot_binary(&folder, &app_folders())
-        .ok_or("Godot est introuvable : installe-le dans Applications, ou indique la commande qui lance le jeu dans les réglages")?;
+        .ok_or("Godot est introuvable : installe-le dans Applications, ou indique la commande qui lance le projet dans les réglages")?;
     let rel = folder.strip_prefix(dir).ok().filter(|r| !r.as_os_str().is_empty()).unwrap_or(Path::new("."));
     Ok(format!("{} --path {}", paths::shell_quote(&godot), paths::shell_quote(&rel.display().to_string())))
 }

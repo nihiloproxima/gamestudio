@@ -1,7 +1,7 @@
 [package]
-name = "gamestudio"
+name = "studio"
 version = "0.2.1"
-description = "Gamestudio, a workbench for game developers and the coding agents that build their games"
+description = "Studio, a workbench for developers and the coding agents that build their projects"
 authors = ["Nathan Plouvier"]
 license = "MIT"
 # Releases, and so self-updates, come from this repo: a fork changes it to update from its own.
@@ -10,7 +10,7 @@ edition = "2024"
 
 [lib]
 # The `_lib` suffix keeps the lib name distinct from the bin name (https://github.com/rust-lang/cargo/issues/8519).
-name = "gamestudio_lib"
+name = "studio_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -260,7 +260,7 @@ export async function attachProject(meta: ProjectMeta) {
     await switchProject(added.id);
     return added;
   } catch (e) {
-    fail(e, "Ajout du jeu");
+    fail(e, "Ajout du projet");
   }
 }
 
@@ -377,7 +377,7 @@ export async function playGame(path?: string) {
     await refreshSessions();
     go({ name: "agents", session: session.id });
   } catch (e) {
-    fail(e, "Lancement du jeu");
+    fail(e, "Lancement du projet");
   }
 }
 
@@ -405,7 +405,7 @@ export async function stopSession(id: string) {
 export async function checkForUpdate() {
   try {
     store.update = await api.updateCheck();
-    if (store.update.state === "idle") notify(`Gamestudio ${store.update.current} est à jour`);
+    if (store.update.state === "idle") notify(`Studio ${store.update.current} est à jour`);
     if (store.update.state === "error") fail(store.update.error, "Mise à jour");
   } catch (e) {
     fail(e, "Mise à jour");
@@ -463,7 +463,7 @@ if (inTauri) {
   listen<UpdateStatus>("update-changed", (e) => {
     const ready = e.payload.state === "ready" && store.update?.state !== "ready";
     store.update = e.payload;
-    if (ready) notify(`Gamestudio ${e.payload.latest?.replace(/^v/, "")} est installée`, { action: { label: "Redémarrer", run: restartApp } });
+    if (ready) notify(`Studio ${e.payload.latest?.replace(/^v/, "")} est installé`, { action: { label: "Redémarrer", run: restartApp } });
   });
   listen<{ project: string; id: string }>("open-item", async (e) => {
     await switchProject(e.payload.project);

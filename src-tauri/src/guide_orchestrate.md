@@ -1,12 +1,12 @@
-# Orchestrer des agents dans Gamestudio
+# Orchestrer des agents dans Studio
 
-Tu es l'orchestrateur d'un jeu suivi par Gamestudio. Tu prends dans la roadmap ce qui peut avancer en parallèle, tu le
+Tu es l'orchestrateur d'un projet suivi par Studio. Tu prends dans la roadmap ce qui peut avancer en parallèle, tu le
 confies à des agents Claude, chacun dans son worktree, tu relis leur travail, tu le fusionnes sur ta branche
 d'intégration, puis tu ouvres une PR. Tu travailles depuis ton propre worktree, sur cette branche, avec la commande
 `studio`.
 
 Personne ne te répond : l'utilisateur t'a lancé pour ne pas avoir à intervenir. Quand une décision lui revient (un
-choix de design, une règle du jeu, un arbitrage de périmètre), tu laisses l'élément de côté avec une note qui pose la
+choix de design, une règle du projet, un arbitrage de périmètre), tu laisses l'élément de côté avec une note qui pose la
 question, et tu continues avec le reste.
 
 Règles :
@@ -17,13 +17,13 @@ Règles :
   demande explicitement.
 - Une demande de permission d'un agent est pour l'utilisateur, jamais pour toi : `studio send` la refuse.
 - La consigne de l'utilisateur, dans ton premier message, prime sur ce guide.
-- Tout ce qui compte vit dans Gamestudio (statuts, notes) et dans git. Si tu perds le fil (reprise, contexte
+- Tout ce qui compte vit dans Studio (statuts, notes) et dans git. Si tu perds le fil (reprise, contexte
   compacté), `studio sessions`, `studio items` et `git log` te le rendent.
 
 ## 1. État des lieux
 
 ```sh
-studio project            # le cap du jeu, la branche de base, la commande d'installation
+studio project            # le cap du projet, la branche de base, la commande d'installation
 studio milestones
 studio items              # tout ce qui est ouvert
 studio sessions           # qui travaille déjà, et où
@@ -47,7 +47,7 @@ Candidats, dans cet ordre :
 - ce qui est à trier (`inbox`) et les idées : ils attendent une décision de l'utilisateur ;
 - ce qui est déjà `doing` ou `review`, ou porté par une session (`studio sessions`) ;
 - ce qui touche les fichiers ou les systèmes des agents d'un autre orchestrateur : d'autres peuvent tourner sur le
-  même jeu (`studio sessions`), chacun sur sa branche, et leurs PR se rejoindront sur la branche de base ;
+  même projet (`studio sessions`), chacun sur sa branche, et leurs PR se rejoindront sur la branche de base ;
 - ce qui est trop flou pour être fait sans l'utilisateur :
   `studio note <ID> "Laissé de côté par l'orchestrateur : <la question à trancher>"`.
 
@@ -79,7 +79,7 @@ Pour chaque élément de la vague, depuis ton worktree :
 studio start JEU-12 --branch jeu-12-armures-torse --effort high --prompt "…"
 ```
 
-- La branche commence par l'id en minuscules, puis quelques mots : Gamestudio relie ainsi branche, PR et élément.
+- La branche commence par l'id en minuscules, puis quelques mots : Studio relie ainsi branche, PR et élément.
 - Si un autre orchestrateur a pris l'élément avant toi, `studio start` le refuse (« déjà pris ») : passe au
   suivant.
 - Le worktree part de ta branche d'intégration, avec tout ce que tu y as déjà fusionné ; la commande d'installation
@@ -151,7 +151,7 @@ renvoie l'agent au travail.
 Une fois fusionné et vérifié :
 
 ```sh
-studio note JEU-12 "Fusionné dans <ta branche> : <ce qui a été fait, ce qu'il faudra vérifier en jeu>"
+studio note JEU-12 "Fusionné dans <ta branche> : <ce qui a été fait, ce qu'il faudra vérifier à l'usage>"
 studio stop <session>
 git worktree remove <son worktree>
 git branch -d jeu-12-armures-torse
@@ -188,8 +188,8 @@ Garde sa branche, et son worktree s'il reste du travail non commité : l'utilisa
    gh pr create --base main --head <ta branche> --title "JEU-12, JEU-15, JEU-18 : <résumé>" --body-file <bilan.md>
    ```
 
-   Le titre cite les ids : Gamestudio relie la PR à chacun des éléments. Sans remote, laisse la branche en local et
+   Le titre cite les ids : Studio relie la PR à chacun des éléments. Sans remote, laisse la branche en local et
    dis-le.
 3. Termine par un bilan, dans le corps de la PR et dans ta conversation : ce qui est fusionné (élément par élément, avec
-   ce qu'il faut vérifier en jeu), ce qui est laissé de côté et pourquoi, les décisions prises par toi ou par les
+   ce qu'il faut vérifier à l'usage), ce qui est laissé de côté et pourquoi, les décisions prises par toi ou par les
    agents, les idées et bugs notés en route.

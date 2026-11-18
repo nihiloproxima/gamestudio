@@ -91,7 +91,7 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
     <header class="view-head" data-tauri-drag-region>
       <h1>Réglages</h1>
       <span class="spacer" />
-      <button v-if="!creating" class="btn btn-ghost" @click="creating = true"><Plus />Nouveau jeu</button>
+      <button v-if="!creating" class="btn btn-ghost" @click="creating = true"><Plus />Nouveau projet</button>
     </header>
 
     <div class="view-body">
@@ -100,15 +100,15 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
           <header class="card-head">
             <ProjectGlyph :project="{ name: form.name || '?', color: form.color }" :size="34" />
             <div>
-              <h2>{{ creating ? "Nouveau jeu" : form.name }}</h2>
+              <h2>{{ creating ? "Nouveau projet" : form.name }}</h2>
               <p class="muted">
-                {{ creating ? "Si son dépôt a déjà une branche gamestudio, ses données reviennent telles quelles." : "Les mêmes réglages sur chaque Mac, sauf le chemin du dépôt." }}
+                {{ creating ? "Si son dépôt a déjà une branche studio, ses données reviennent telles quelles." : "Les mêmes réglages sur chaque Mac, sauf le chemin du dépôt." }}
               </p>
             </div>
           </header>
           <form class="form" @submit.prevent="save">
             <div class="two">
-              <label><span class="label">Nom</span><input v-model="form.name" class="field" placeholder="Mon jeu" /></label>
+              <label><span class="label">Nom</span><input v-model="form.name" class="field" placeholder="Mon projet" /></label>
               <label>
                 <span class="label">Clé des éléments</span>
                 <input v-model="form.key" class="field code" maxlength="5" placeholder="JEU" @input="form.key = form.key.toUpperCase()" />
@@ -133,7 +133,7 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
             <div class="two">
               <label>
                 <span class="label">Dépôt sur ce Mac</span>
-                <input v-model="form.path" class="field code" placeholder="~/code/mon-jeu" spellcheck="false" />
+                <input v-model="form.path" class="field code" placeholder="~/code/mon-projet" spellcheck="false" />
               </label>
               <label>
                 <span class="label">Dépôt GitHub</span>
@@ -155,7 +155,7 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
               </label>
             </div>
             <label>
-              <span class="label">Commande qui lance le jeu</span>
+              <span class="label">Commande qui lance le projet</span>
               <input v-model="form.run" class="field code" placeholder="détectée si vide (Godot)" spellcheck="false" />
             </label>
             <label>
@@ -164,7 +164,7 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
             </label>
             <div class="form-actions">
               <button v-if="creating" type="button" class="btn btn-ghost" @click="creating = false">Annuler</button>
-              <button type="submit" class="btn btn-solid" :disabled="!dirty">{{ creating ? "Ajouter le jeu" : "Enregistrer" }}</button>
+              <button type="submit" class="btn btn-solid" :disabled="!dirty">{{ creating ? "Ajouter le projet" : "Enregistrer" }}</button>
             </div>
           </form>
         </section>
@@ -175,9 +175,9 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
             <div>
               <h2>Données et synchro</h2>
               <p class="muted">
-                Le suivi de {{ project.name }} vit sur la branche <code>gamestudio</code> de son dépôt, sans lien avec
-                l'historique du jeu : un fichier Markdown par élément, copié dans
-                <code class="selectable">~/.gamestudio/data/{{ project.id }}</code>.
+                Le suivi de {{ project.name }} vit sur la branche <code>studio</code> de son dépôt, sans lien avec
+                l'historique du code : un fichier Markdown par élément, copié dans
+                <code class="selectable">~/.studio/data/{{ project.id }}</code>.
               </p>
             </div>
           </header>
@@ -186,7 +186,7 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
             <template v-else>Pas de dépôt distant : les données restent sur ce Mac</template>
             <template v-if="store.sync?.lastSync">, dernière synchro {{ since(store.sync.lastSync, now) }}</template>. Un
             changement part quelques secondes après, et l'app récupère ceux des autres Mac toutes les 3 minutes. Sur un
-            autre Mac, clone le jeu et ajoute-le : son suivi revient.
+            autre Mac, clone le dépôt et ajoute-le : son suivi revient.
           </p>
           <p v-if="store.sync?.error" class="warn selectable"><TriangleAlert :size="14" />{{ store.sync.error }}</p>
           <button class="btn btn-quiet" :disabled="store.sync?.syncing" @click="syncNow"><RefreshCw />Synchroniser maintenant</button>
@@ -196,7 +196,7 @@ const remote = computed(() => (project.value ? store.sync?.remotes[project.value
           <header class="card-head">
             <CircleArrowUp :size="22" class="muted" />
             <div>
-              <h2>Gamestudio {{ store.update.current }}</h2>
+              <h2>Studio {{ store.update.current }}</h2>
               <p class="muted">
                 L'app cherche une nouvelle version au démarrage puis toutes les six heures, l'installe et te prévient.
                 Tes agents continuent de tourner pendant le redémarrage.
@@ -245,7 +245,7 @@ studio idea "un corbeau…"          une idée à trier
 studio note JEU-12 "…"             une note datée sur la fiche
 studio status JEU-12 review        le statut
 studio import plan.json --dry-run  un plan entier, en aperçu
-studio guide setup                 la marche à suivre pour configurer un jeu
+studio guide setup                 la marche à suivre pour configurer un projet
 studio help                        tout le reste</pre>
         </section>
       </div>

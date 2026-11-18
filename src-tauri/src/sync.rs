@@ -1,6 +1,6 @@
-//! Each game's tracker data lives on a `gamestudio` branch of the game's own repo, so it travels with the game: clone
-//! the game on another Mac, add it to Gamestudio, and its roadmap comes back. The branch shares no history with the
-//! game's code and is checked out as a small separate clone in `~/.gamestudio/data/<project>`, never in the game's
+//! Each project's tracker data lives on a `studio` branch of the project's own repo, so it travels with the code:
+//! clone the repo on another Mac, add it to Studio, and its roadmap comes back. The branch shares no history with the
+//! code and is checked out as a small separate clone in `~/.studio/data/<project>`, never in the repo's
 //! working tree. One worker thread owns every git operation on these clones: it commits what changed, fetches,
 //! rebases onto the remote and pushes, a few seconds after the last edit and every few minutes otherwise.
 
@@ -16,7 +16,9 @@ use tauri::{AppHandle, Emitter};
 use crate::{paths, store};
 
 /// The branch of each game's repo that holds its tracker data.
-pub const BRANCH: &str = "gamestudio";
+pub const BRANCH: &str = "studio";
+/// Its name before the app was renamed: a clone still on it moves to `BRANCH` at its next sync.
+const LEGACY_BRANCH: &str = "gamestudio";
 const PERIOD: Duration = Duration::from_secs(180);
 const DEBOUNCE: Duration = Duration::from_secs(6);
 const GITIGNORE: &str = ".*.tmp\n.DS_Store\n";
@@ -209,6 +211,7 @@ fn short_name(file: &str) -> &str {
 /// One round trip for one game. Returns a notice when both machines had edited the same files.
 fn sync(app: &AppHandle, dir: &Path) -> Result<Option<String>, String> {
     commit_local(dir)?;
+    rename_legacy_branch(dir)?;
     if remote_url(dir).is_none() {
         return Ok(None);
     }
@@ -248,7 +251,53 @@ fn sync(app: &AppHandle, dir: &Path) -> Result<Option<String>, String> {
         paths::run(git(dir).args(["push", "-q", "origin", &format!("HEAD:{BRANCH}")]))
             .map_err(|e| format!("envoi refusé, nouvel essai à la prochaine synchro : {}", first_line(&e)))?;
     }
+    delete_legacy_remote(dir);
     Ok(notice)
+}
+
+/// A clone still on the branch's former name takes in what the remote has there, then takes the new name; the sync
+/// that follows pushes it under that name. On a conflict nothing changes and the next sync tries again.
+fn rename_legacy_branch(dir: &Path) -> Result<(), String> {
+    let head = paths::run(git(dir).args(["symbolic-ref", "--short", "HEAD"])).unwrap_or_default();
+    if head.trim() != LEGACY_BRANCH {
+        return Ok(());
+    }
+    let has_remote = remote_url(dir).is_some();
+    if has_remote {
+        let legacy = format!("origin/{LEGACY_BRANCH}");
+        let refspec = format!("+refs/heads/{LEGACY_BRANCH}:refs/remotes/{legacy}");
+        paths::run(git(dir).args(["fetch", "-q", "origin", &refspec]))
+            .or_else(|e| if e.contains("couldn't find remote ref") { Ok(String::new()) } else { Err(e) })
+            .map_err(|e| format!("dépôt injoignable : {}", first_line(&e)))?;
+        let fetched = paths::run(git(dir).args(["rev-parse", "--verify", "-q", &legacy])).is_ok();
+        if fetched && count(dir, &format!("HEAD..{legacy}")) > 0 {
+            let _guard = store::lock();
+            if let Err(e) = paths::run(git(dir).args(["rebase", "-q", "-X", "theirs", &legacy])) {
+                let _ = paths::run(git(dir).args(["rebase", "--abort"]));
+                return Err(format!("passage à la branche {BRANCH} impossible, rien n'a changé : {}", first_line(&e)));
+            }
+        }
+    }
+    paths::run(git(dir).args(["branch", "-m", BRANCH]))?;
+    if has_remote {
+        // A clone of the old branch fetched only that branch.
+        let refspec = format!("+refs/heads/{BRANCH}:refs/remotes/origin/{BRANCH}");
+        paths::run(git(dir).args(["config", "remote.origin.fetch", &refspec]))?;
+    }
+    Ok(())
+}
+
+/// Once the data is on the remote under the new name, the old branch goes.
+fn delete_legacy_remote(dir: &Path) {
+    let legacy = format!("refs/remotes/origin/{LEGACY_BRANCH}");
+    let pushed = paths::run(git(dir).args(["rev-parse", "--verify", "-q", &format!("origin/{BRANCH}")])).is_ok();
+    if !pushed || unpushed(dir) > 0 || paths::run(git(dir).args(["rev-parse", "--verify", "-q", &legacy])).is_err() {
+        return;
+    }
+    let deleted = paths::run(git(dir).args(["push", "-q", "origin", "--delete", LEGACY_BRANCH]));
+    if deleted.as_ref().is_ok() || deleted.as_ref().is_err_and(|e| e.contains("remote ref does not exist")) {
+        let _ = paths::run(git(dir).args(["update-ref", "-d", &legacy]));
+    }
 }
 
 fn first_line(text: &str) -> &str {
@@ -260,9 +309,9 @@ fn first_line(text: &str) -> &str {
 
 /// Whether `remote` has the data branch. A remote that cannot be reached is an error, not a "no": creating a second
 /// history for a game that already has one would fork its data.
-fn has_branch(repo: &Path, remote: &str) -> Result<bool, String> {
+fn has_branch(repo: &Path, remote: &str, branch: &str) -> Result<bool, String> {
     let out = git(repo)
-        .args(["ls-remote", "--exit-code", "--heads", remote, BRANCH])
+        .args(["ls-remote", "--exit-code", "--heads", remote, branch])
         .stdin(Stdio::null())
         .output()
         .map_err(|e| e.to_string())?;
@@ -270,13 +319,13 @@ fn has_branch(repo: &Path, remote: &str) -> Result<bool, String> {
         Some(0) => Ok(true),
         Some(2) => Ok(false),
         _ => Err(format!(
-            "Impossible de joindre {remote} pour savoir s'il a déjà des données Gamestudio : {}",
+            "Impossible de joindre {remote} pour savoir s'il a déjà des données Studio : {}",
             first_line(&String::from_utf8_lossy(&out.stderr))
         )),
     }
 }
 
-/// Starts tracking the game whose repo is at `meta.path`, and returns its project id. When the repo (its `origin`,
+/// Starts tracking the project whose repo is at `meta.path`, and returns its project id. When the repo (its `origin`,
 /// else the repo itself) already has the data branch, its data comes back as it is, from another machine or an
 /// earlier install; otherwise a new branch starts from `meta`.
 pub fn attach(meta: store::ProjectMeta) -> Result<String, String> {
@@ -290,15 +339,23 @@ pub fn attach(meta: store::ProjectMeta) -> Result<String, String> {
     let remote = remote_url(&repo).unwrap_or_else(|| repo.display().to_string());
     std::fs::create_dir_all(paths::data_dir()).map_err(|e| e.to_string())?;
 
-    if has_branch(&repo, &remote)? {
+    let existing = if has_branch(&repo, &remote, BRANCH)? {
+        Some(BRANCH)
+    } else if has_branch(&repo, &remote, LEGACY_BRANCH)? {
+        Some(LEGACY_BRANCH)
+    } else {
+        None
+    };
+    if let Some(branch) = existing {
         let tmp = paths::data_dir().join(format!(".attach-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
-        paths::run(git(&paths::data_dir()).args(["clone", "-q", "--single-branch", "--branch", BRANCH, &remote]).arg(&tmp))
+        paths::run(git(&paths::data_dir()).args(["clone", "-q", "--single-branch", "--branch", branch, &remote]).arg(&tmp))
             .map_err(|e| format!("Récupération des données impossible : {}", first_line(&e)))?;
         let name = store::read_name(&tmp).unwrap_or_else(|| meta.name.clone());
         let id = store::free_id(&name)?;
         std::fs::rename(&tmp, paths::data_dir().join(&id)).map_err(|e| e.to_string())?;
         store::register(&id, &meta.path)?;
+        touch();
         return Ok(id);
     }
 

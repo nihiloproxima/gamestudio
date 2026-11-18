@@ -111,7 +111,7 @@ async function saveVision() {
             v-model="visionDraft"
             class="field"
             rows="6"
-            placeholder="Le pitch du jeu, ses objectifs, ce qu'on vise pour la prochaine version…"
+            placeholder="Le pitch du projet, ses objectifs, ce qu'on vise pour la prochaine version…"
             @keydown.meta.enter="saveVision"
             @keydown.esc="visionEditing = false"
           />
@@ -122,7 +122,7 @@ async function saveVision() {
           </div>
         </template>
         <Markdown v-else-if="project.vision" :source="project.vision" />
-        <p v-else class="muted">Écris le pitch et les objectifs du jeu : c'est ce que tout le reste sert.</p>
+        <p v-else class="muted">Écris le pitch et les objectifs du projet : c'est ce que tout le reste sert.</p>
       </section>
 
       <div v-if="!store.milestones.length && editing !== 'new'" class="empty">

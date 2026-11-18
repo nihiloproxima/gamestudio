@@ -10,7 +10,7 @@ pub fn conf_path() -> PathBuf {
     paths::studio_dir().join("tmux.conf")
 }
 
-/// Gamestudio's private tmux server: agents outlive the app, and `tmux -L studio attach` reaches them from any terminal.
+/// Studio's private tmux server: agents outlive the app, and `tmux -L studio attach` reaches them from any terminal.
 pub fn command() -> Command {
     let mut cmd = Command::new("tmux");
     cmd.args(["-L", SOCKET, "-f"]).arg(conf_path());

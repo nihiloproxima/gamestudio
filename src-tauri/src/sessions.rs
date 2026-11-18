@@ -1,5 +1,5 @@
-//! Agent and shell sessions, each a tmux session on Gamestudio's private server so it outlives the app. Records live
-//! in `~/.gamestudio/sessions.json`, on this machine only; liveness is read from tmux, status comes from the agents'
+//! Agent and shell sessions, each a tmux session on Studio's private server so it outlives the app. Records live
+//! in `~/.studio/sessions.json`, on this machine only; liveness is read from tmux, status comes from the agents'
 //! hooks (`studio hook …`), never from screen scraping.
 
 use serde::{Deserialize, Serialize};
@@ -134,7 +134,7 @@ fn hooks_file() -> PathBuf {
     paths::studio_dir().join("claude-hooks.json")
 }
 
-/// Claude Code settings layered on the sessions Gamestudio launches (`claude --settings`), so their hooks report to
+/// Claude Code settings layered on the sessions Studio launches (`claude --settings`), so their hooks report to
 /// the app without touching the user's global settings. Rewritten at startup with the current binary.
 pub fn write_hooks() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
@@ -163,7 +163,10 @@ pub fn write_opencode_plugin() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let exe = serde_json::to_string(&exe.display().to_string()).map_err(|e| e.to_string())?;
     let source = include_str!("opencode_plugin.js").replace("__STUDIO_EXE__", &exe);
-    paths::write_atomic(&opencode_config_dir().join("plugins").join("gamestudio.js"), &source)
+    let plugins = opencode_config_dir().join("plugins");
+    // Its name under Gamestudio: left there, it would report every status twice.
+    let _ = std::fs::remove_file(plugins.join("gamestudio.js"));
+    paths::write_atomic(&plugins.join("studio.js"), &source)
 }
 
 #[derive(Deserialize)]
@@ -244,13 +247,13 @@ fn choice(
 }
 
 /// What the "Configurer avec Claude" session is told; the procedure itself is `studio guide setup`.
-pub const SETUP_PROMPT: &str = "Configure ce jeu dans Gamestudio. Lance d'abord `studio guide setup` et suis-le pas à \
+pub const SETUP_PROMPT: &str = "Configure ce projet dans Studio. Lance d'abord `studio guide setup` et suis-le pas à \
 pas : inventaire du dépôt, questions groupées, aperçu avec `studio import --dry-run`, et import seulement après mon \
 accord explicite.";
 
 /// Told to every agent an orchestrator launches, after its item: nobody answers its questions, the orchestrator
 /// merges its branch.
-const WORKER_RULES: &str = "---\nTu travailles sans surveillance, pour l'orchestrateur de Gamestudio : personne ne \
+const WORKER_RULES: &str = "---\nTu travailles sans surveillance, pour l'orchestrateur de Studio : personne ne \
 répondra à tes questions, et c'est lui qui relira et fusionnera ton travail.\n\
 - Reste dans le périmètre de la consigne ; ce qui en sort devient `studio idea \"…\"` ou `studio bug \"…\"`.\n\
 - Devant un choix, tranche raisonnablement et consigne-le : `studio note {id} \"Décision : …\"`.\n\
@@ -277,7 +280,7 @@ trier plutôt que de trancher.\n\
 const BRAINSTORM_RULES: &str = "---\nTu brainstormes sur {name} : proposer, confronter, creuser — sans écrire de code, \
 sans réorganiser la roadmap.\n\
 - Pars de la vision (`studio project`) et de ce qui existe (`studio items --all`, `studio milestones`).\n\
-- Creuse peu de pistes plutôt que d'en effleurer beaucoup : ce qu'elles changent au jeu, ce qu'elles coûtent, où elles \
+- Creuse peu de pistes plutôt que d'en effleurer beaucoup : ce qu'elles changent au projet, ce qu'elles coûtent, où elles \
 risquent de casser.\n\
 - Une piste qui tient devient `studio idea \"…\"` avec le raisonnement en corps de fiche ; les autres disparaissent.\n\
 - Les arbitrages reviennent à l'utilisateur : pose-les franchement, propose, ne décide pas à sa place.\n\
@@ -308,7 +311,7 @@ fn brief(
     match item {
         Some(item) if worker => text += &WORKER_RULES.replace("{id}", &item.id),
         Some(item) => text += &format!(
-            "---\nGamestudio suit ce travail. Avec la commande `studio` :\n\
+            "---\nStudio suit ce travail. Avec la commande `studio` :\n\
              - `studio item {id}` relit la fiche ;\n\
              - `studio note {id} \"…\"` consigne une décision ou un point d'étape ;\n\
              - `studio status {id} review` quand c'est prêt à vérifier (`done` une fois vérifié) ;\n\
@@ -402,7 +405,7 @@ fn agent_command(
             if role.is_some() {
                 flags += " --auto";
             }
-            // Its own config directory, which holds only Gamestudio's status plugin: the user's OpenCode setup stays put.
+            // Its own config directory, which holds only Studio's status plugin: the user's OpenCode setup stays put.
             let config = format!("OPENCODE_CONFIG_DIR={}", paths::shell_quote(&opencode_config_dir().display().to_string()));
             // `--standalone`: the plugin runs in the server this session starts, which is the one that sees its environment.
             match resume {
@@ -616,10 +619,10 @@ pub fn play(app: &AppHandle, project: &str, path: Option<&str>) -> Result<Sessio
             .ok()
             .filter(|b| !b.is_empty());
         Session {
-            id: unique_id(&format!("{}-jeu", project.id)),
+            id: unique_id(&format!("{}-run", project.id)),
             project: project.id.clone(),
             item: None,
-            title: branch.as_ref().map_or("Jeu".into(), |b| format!("Jeu sur {b}")),
+            title: branch.as_ref().map_or("Lancement".into(), |b| format!("Lancement sur {b}")),
             agent: "game".into(),
             cwd: cwd.display().to_string(),
             branch,

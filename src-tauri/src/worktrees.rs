@@ -111,7 +111,7 @@ pub fn list(project_id: &str) -> Result<Vec<Worktree>, String> {
         .collect())
 }
 
-/// A new worktree for `branch` under `~/.gamestudio/worktrees/<project>/`: the branch is checked out if it exists
+/// A new worktree for `branch` under `~/.studio/worktrees/<project>/`: the branch is checked out if it exists
 /// (locally or on origin), created from `from` (default: the project's base) otherwise.
 pub fn create(project: &store::Project, branch: &str, from: Option<&str>) -> Result<PathBuf, String> {
     let repo = repo_path(project)?;

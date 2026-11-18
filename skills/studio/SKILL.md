@@ -1,11 +1,11 @@
 ---
 name: studio
-description: Read and update the Gamestudio game tracker with the `studio` CLI — tasks, bugs, ideas, milestones, project settings, agent sessions. Use when working in a game repo tracked by Gamestudio and the task touches what to do next, an item id like JEU-12, logging progress, capturing an idea or a bug for later, or when asked to set a game up in Gamestudio (then run `studio guide setup` first) or to orchestrate agents on its roadmap (`studio guide orchestrate`).
+description: Read and update the Studio game tracker with the `studio` CLI — tasks, bugs, ideas, milestones, project settings, agent sessions. Use when working in a game repo tracked by Studio and the task touches what to do next, an item id like JEU-12, logging progress, capturing an idea or a bug for later, or when asked to set a game up in Studio (then run `studio guide setup` first) or to orchestrate agents on its roadmap (`studio guide orchestrate`).
 ---
 
-# Gamestudio (`studio`)
+# Studio (`studio`)
 
-Gamestudio tracks a game's roadmap (milestones), tasks, bugs and ideas, the agent sessions working on it, its assets
+Studio tracks a game's roadmap (milestones), tasks, bugs and ideas, the agent sessions working on it, its assets
 and PRs. The `studio` CLI talks to the running app; the project is inferred from the current directory (the game's
 repo or one of its worktrees), else pass `--project <name|key>`. Sessions launched from the app already have
 `STUDIO_PROJECT`, `STUDIO_ITEM` and `studio` on their PATH.
@@ -62,7 +62,7 @@ studio title "Combat : armures et Nova (FRO-1, FRO-2)"   # what you work on, sho
 
 ## Setting a game up
 
-When asked to set up, import or (re)configure a game in Gamestudio, run `studio guide setup` and follow it: read the
+When asked to set up, import or (re)configure a game in Studio, run `studio guide setup` and follow it: read the
 repo, ask the user the questions that change the plan, show `studio import plan.json --dry-run`, and import only
 after their explicit go.
 

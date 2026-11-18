@@ -113,9 +113,9 @@ const items: Item[] = [
 ];
 
 const sessions: Session[] = [
-  { id: "orchestration-0930", project: "frostholm", item: null, title: "Jalon 3 : armures et Nova (FRO-1, FRO-2)", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator", effort: "xhigh", workerEffort: null, model: null },
-  { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless", parent: "orchestration-0930", role: "worker", effort: "high", workerEffort: null, model: null },
-  { id: "fro-2-claude", project: "frostholm", item: "FRO-2", title: "Bâton de feu : la Nova repousse trop loin", agent: "claude", cwd: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", created: ago(40), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: "orchestration-0930", role: "worker", effort: "medium", workerEffort: null, model: null },
+  { id: "orchestration-0930", project: "frostholm", item: null, title: "Jalon 3 : armures et Nova (FRO-1, FRO-2)", agent: "claude", cwd: "/Users/ada/.studio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", created: ago(60), claudeSession: null, status: "working", statusAt: ago(3), message: null, parent: null, role: "orchestrator", effort: "xhigh", workerEffort: null, model: null },
+  { id: "fro-1-claude", project: "frostholm", item: "FRO-1", title: "Armures : slot de torse et de jambes", agent: "claude", cwd: "/Users/ada/.studio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", created: ago(95), claudeSession: null, status: "waiting", statusAt: ago(4), message: "Claude a besoin de ta permission pour lancer godot --headless", parent: "orchestration-0930", role: "worker", effort: "high", workerEffort: null, model: null },
+  { id: "fro-2-claude", project: "frostholm", item: "FRO-2", title: "Bâton de feu : la Nova repousse trop loin", agent: "claude", cwd: "/Users/ada/.studio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", created: ago(40), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: "orchestration-0930", role: "worker", effort: "medium", workerEffort: null, model: null },
   { id: "fro-4-codex", project: "frostholm", item: "FRO-4", title: "Talents : afficher le coût en points", agent: "codex", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(240), claudeSession: null, status: "working", statusAt: ago(1), message: null, parent: null, role: null, effort: null, workerEffort: null, model: null },
   { id: "frostholm-shell", project: "frostholm", item: null, title: "Terminal", agent: "shell", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(30), claudeSession: null, status: "idle", statusAt: ago(30), message: null, parent: null, role: null, effort: null, workerEffort: null, model: null },
   { id: "sfx-forge", project: "frostholm", item: null, title: "Sons de la forge (ElevenLabs)", agent: "claude", cwd: "/Users/ada/code/frostholm", branch: null, created: ago(20), claudeSession: null, status: "working", statusAt: ago(2), message: null, parent: null, role: null, effort: null, workerEffort: null, model: null },
@@ -125,10 +125,10 @@ const sessions: Session[] = [
 const worktrees: Record<string, Worktree[]> = {
   frostholm: [
     { path: "/Users/ada/code/frostholm", branch: "main", head: "437344a", main: true, locked: false, dirty: 3, ahead: 0, behind: 0, lastCommit: "Plan : refonte du combat après les systèmes", lastCommitAt: ago(80) },
-    { path: "/Users/ada/.gamestudio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", head: "9f1c2e0", main: false, locked: false, dirty: 7, ahead: 4, behind: 1, lastCommit: "3.9 Armures : slots de torse et jambes", lastCommitAt: ago(15) },
-    { path: "/Users/ada/.gamestudio/worktrees/frostholm/fro-4-talents-cout", branch: "fro-4-talents-cout", head: "a02b77d", main: false, locked: false, dirty: 0, ahead: 2, behind: 0, lastCommit: "Talents : le coût en points sous chaque nœud", lastCommitAt: ago(200) },
-    { path: "/Users/ada/.gamestudio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", head: "437344a", main: false, locked: false, dirty: 0, ahead: 0, behind: 0, lastCommit: "Plan : refonte du combat après les systèmes", lastCommitAt: ago(80) },
-    { path: "/Users/ada/.gamestudio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", head: "5be0f12", main: false, locked: false, dirty: 2, ahead: 1, behind: 0, lastCommit: "Nova : recul proportionnel à la charge", lastCommitAt: ago(6) },
+    { path: "/Users/ada/.studio/worktrees/frostholm/fro-1-armures", branch: "fro-1-armures", head: "9f1c2e0", main: false, locked: false, dirty: 7, ahead: 4, behind: 1, lastCommit: "3.9 Armures : slots de torse et jambes", lastCommitAt: ago(15) },
+    { path: "/Users/ada/.studio/worktrees/frostholm/fro-4-talents-cout", branch: "fro-4-talents-cout", head: "a02b77d", main: false, locked: false, dirty: 0, ahead: 2, behind: 0, lastCommit: "Talents : le coût en points sous chaque nœud", lastCommitAt: ago(200) },
+    { path: "/Users/ada/.studio/worktrees/frostholm/orchestration-2026-10-29-0930", branch: "orchestration-2026-10-29-0930", head: "437344a", main: false, locked: false, dirty: 0, ahead: 0, behind: 0, lastCommit: "Plan : refonte du combat après les systèmes", lastCommitAt: ago(80) },
+    { path: "/Users/ada/.studio/worktrees/frostholm/fro-2-nova-recul", branch: "fro-2-nova-recul", head: "5be0f12", main: false, locked: false, dirty: 2, ahead: 1, behind: 0, lastCommit: "Nova : recul proportionnel à la charge", lastCommitAt: ago(6) },
   ],
 };
 
@@ -396,7 +396,7 @@ export const demoApi: Api = {
   sessionSetup(project) {
     return demoApi.sessionStart({ project, agent: "claude", place: "main" }).then((s) => {
       const live = sessions.find((x) => x.id === s.id)!;
-      live.title = "Configuration de Gamestudio";
+      live.title = "Configuration de Studio";
       return { ...s, title: live.title };
     });
   },
@@ -411,7 +411,7 @@ export const demoApi: Api = {
   sessionPlay(project, path) {
     const p = projects.find((x) => x.id === project)!;
     // Frostholm is a Godot game, Neon City has its command: Ember shows what happens when neither is known.
-    if (project === "ember") return fail(`Gamestudio ne sait pas lancer ${p.name} : indique la commande qui le lance dans les réglages`);
+    if (project === "ember") return fail(`Studio ne sait pas lancer ${p.name} : indique la commande qui le lance dans les réglages`);
     const cwd = path ?? worktrees[project]?.find((w) => w.main)?.path ?? p.path;
     const live = sessions.find((s) => s.agent === "game" && s.project === project && s.cwd === cwd);
     if (live) {
@@ -420,10 +420,10 @@ export const demoApi: Api = {
     }
     const branch = worktrees[project]?.find((w) => w.path === cwd)?.branch ?? "main";
     const s: Session = {
-      id: `${project}-jeu-${sessions.length}`,
+      id: `${project}-run-${sessions.length}`,
       project,
       item: null,
-      title: `Jeu sur ${branch}`,
+      title: `Lancement sur ${branch}`,
       agent: "game",
       cwd,
       branch,
