@@ -436,7 +436,7 @@ fn print_result(cmd: &str, v: &Value) {
             Some(e) => println!("Synchro en erreur : {e}"),
             None => {
                 let remotes = v["remotes"].as_object().map(|m| m.len()).unwrap_or(0);
-                println!("Données synchronisées ({remotes} projet{} relié{} à son dépôt).", if remotes > 1 { "s" } else { "" }, if remotes > 1 { "s" } else { "" });
+                println!("Données synchronisées ({}).", if remotes > 1 { format!("{remotes} projets reliés à leur dépôt") } else { format!("{remotes} projet relié à son dépôt") });
             }
         },
         _ => {}
