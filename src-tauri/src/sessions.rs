@@ -119,6 +119,12 @@ fn bin_dir() -> PathBuf {
     paths::studio_dir().join("bin")
 }
 
+/// What agents call back (hooks, notify, plugin): the `studio` link, not the binary's own path. An agent reads these
+/// once, when it starts, and keeps running across installs that move or rename the app; the link follows them.
+fn studio_link() -> String {
+    bin_dir().join("studio").display().to_string()
+}
+
 pub fn link_cli() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let link = bin_dir().join("studio");
@@ -137,9 +143,9 @@ fn hooks_file() -> PathBuf {
 /// Claude Code settings layered on the sessions Studio launches (`claude --settings`), so their hooks report to
 /// the app without touching the user's global settings. Rewritten at startup with the current binary.
 pub fn write_hooks() -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe = paths::shell_quote(&studio_link());
     let hook = |event: &str| {
-        serde_json::json!([{ "hooks": [{ "type": "command", "command": format!("'{}' hook {event}", exe.display()), "timeout": 5 }] }])
+        serde_json::json!([{ "hooks": [{ "type": "command", "command": format!("{exe} hook {event}"), "timeout": 5 }] }])
     };
     let settings = serde_json::json!({
         "hooks": {
@@ -160,8 +166,7 @@ fn opencode_config_dir() -> PathBuf {
 /// The OpenCode plugin that reports a session's status to the app (`studio hook opencode`). It sits in the config
 /// directory of OpenCode sessions only (`OPENCODE_CONFIG_DIR`), so the user's own OpenCode setup is left alone.
 pub fn write_opencode_plugin() -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let exe = serde_json::to_string(&exe.display().to_string()).map_err(|e| e.to_string())?;
+    let exe = serde_json::to_string(&studio_link()).map_err(|e| e.to_string())?;
     let source = include_str!("opencode_plugin.js").replace("__STUDIO_EXE__", &exe);
     let plugins = opencode_config_dir().join("plugins");
     // Its name under Gamestudio: left there, it would report every status twice.
@@ -417,7 +422,7 @@ fn agent_command(
     brief_file: Option<&Path>,
     resume: Option<&Session>,
 ) -> Result<Option<String>, String> {
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe = studio_link();
     let brief_arg = brief_file.map(|f| format!(" \"$(cat {})\"", paths::shell_quote(&f.display().to_string()))).unwrap_or_default();
     let run = match agent {
         "claude" => {
@@ -429,7 +434,7 @@ fn agent_command(
             }
         }
         "codex" => {
-            let notify = format!("-c {}{}", paths::shell_quote(&format!("notify=[\"{}\",\"hook\",\"codex\"]", exe.display())), codex_flags(model, effort));
+            let notify = format!("-c {}{}", paths::shell_quote(&format!("notify=[\"{exe}\",\"hook\",\"codex\"]")), codex_flags(model, effort));
             match resume {
                 Some(_) => format!("codex {notify} resume --last"),
                 None => format!("codex {notify}{brief_arg}"),

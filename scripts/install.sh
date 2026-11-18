@@ -36,7 +36,13 @@ quit() {
 }
 quit "$DEST" studio
 quit "$LEGACY" gamestudio
-rm -rf "$LEGACY"
+# Agents started by the old app call it back at its binary's path for as long as they run: replace the app by a link
+# from that path to the `studio` link, which follows Studio.
+if [ -f "$LEGACY/Contents/Info.plist" ]; then
+  rm -rf "$LEGACY"
+  mkdir -p "$LEGACY/Contents/MacOS"
+  ln -sf "$HOME/.studio/bin/studio" "$LEGACY/Contents/MacOS/gamestudio"
+fi
 
 rm -rf "$DEST"
 ditto "$tmp/Studio.app" "$DEST"
