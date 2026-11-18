@@ -56,6 +56,8 @@ const tauriApi = {
 
   worktrees: (project: string) => invoke<Worktree[]>("worktrees_list", { project }),
   worktreeRemove: (project: string, path: string) => invoke<void>("worktree_remove", { project, path }),
+  /** Removes the worktree and its local branch, once its work is in the base or a merged PR. */
+  worktreeArchive: (project: string, path: string) => invoke<void>("worktree_archive", { project, path }),
 
   prs: (project: string) => invoke<PullRequest[]>("prs_list", { project }),
   assets: (project: string) => invoke<Asset[]>("assets_list", { project }),

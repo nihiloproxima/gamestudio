@@ -82,7 +82,9 @@ UI copy is French (sentence case, plain verbs). Code, identifiers and comments a
 - **Links** between items and work are by naming: a branch or PR title containing `JEU-12` belongs to JEU-12
   (`src/lib/links.ts`). Default branch names start with the lowercase id.
 - **Worktrees** (`worktrees.rs`): read from `git worktree list`; created under `~/.studio/worktrees`; removal
-  refused while dirty or with a live session (branch kept).
+  refused while dirty or with a live session (branch kept). **Archive** (`worktrees::archive`, offered on a lane
+  once nothing is ahead of the base or its PR merged) also deletes the local branch, after checking again: every
+  commit in the freshly fetched base, or a merged PR (`github::merged_pr`) whose head holds the whole branch.
 - **Updates** (`update.rs`): an installed app (running from a `.app`) asks `gh release view` on the repo in
   Cargo.toml's `repository` 20 s after start and every 6 h; a newer `vX.Y.Z` is downloaded with `gh` (works on a
   private repo, no token stored), its Info.plist version checked, and swapped in place of the running bundle (copy

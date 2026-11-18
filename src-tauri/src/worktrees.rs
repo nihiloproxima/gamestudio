@@ -3,7 +3,7 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
-use crate::{paths, sessions, store};
+use crate::{github, paths, sessions, store};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -157,12 +157,11 @@ pub fn free_branch(project: &store::Project, base: &str) -> Result<String, Strin
     Ok(branch)
 }
 
-/// Removes a finished worktree, keeping its branch. Refused while it holds uncommitted work or a live session.
-pub fn remove(project_id: &str, path: &str) -> Result<(), String> {
+/// A worktree that may go: not the main checkout, nothing uncommitted, no live session in it.
+fn removable(project_id: &str, path: &str) -> Result<(store::Project, PathBuf, Worktree), String> {
     let project = store::project(project_id)?;
     let repo = repo_path(&project)?;
     let target = paths::canonical(Path::new(path));
-    let target = target.as_path();
     if target == paths::canonical(&repo) {
         return Err("Le dépôt principal ne se supprime pas".into());
     }
@@ -171,10 +170,42 @@ pub fn remove(project_id: &str, path: &str) -> Result<(), String> {
     if wt.dirty > 0 {
         return Err(format!("{} fichier(s) non commité(s) dans ce worktree : rien n'est supprimé", wt.dirty));
     }
-    if let Some(s) = sessions::live_in(target) {
+    if let Some(s) = sessions::live_in(&target) {
         return Err(format!("La session {s} tourne encore dans ce worktree"));
     }
-    paths::run(paths::git(&repo).args(["worktree", "remove"]).arg(target)).map(|_| ())
+    Ok((project, repo, wt))
+}
+
+/// Removes a worktree, keeping its branch.
+pub fn remove(project_id: &str, path: &str) -> Result<(), String> {
+    let (_, repo, wt) = removable(project_id, path)?;
+    paths::run(paths::git(&repo).args(["worktree", "remove", &wt.path])).map(|_| ())
+}
+
+/// Once its work has landed, removes a worktree and its local branch. Landed means every commit of the branch is in
+/// the project's base (freshly fetched), or a merged PR carried it (a squash or a rebase leaves other commits in the
+/// base) and the branch has nothing the PR did not have.
+pub fn archive(project_id: &str, path: &str) -> Result<(), String> {
+    let (project, repo, wt) = removable(project_id, path)?;
+    let branch = wt.branch.clone().ok_or("Ce worktree n'est sur aucune branche : supprime-le plutôt")?;
+    let base = project.meta.base.as_str();
+    if let Some((remote, name)) = base.split_once('/') {
+        let _ = paths::run(paths::git(&repo).args(["fetch", "-q", remote, name]));
+    }
+    let ancestor = |of: &str| paths::run(paths::git(&repo).args(["merge-base", "--is-ancestor", &branch, of])).is_ok();
+    if !ancestor(base) {
+        match github::merged_pr(&project, &branch)? {
+            None => {
+                return Err(format!("{branch} a des commits absents de {base} et aucune PR fusionnée : rien n'est supprimé"));
+            }
+            Some((number, head)) if !ancestor(&head) => {
+                return Err(format!("{branch} a des commits arrivés après la fusion de la PR #{number} : rien n'est supprimé"));
+            }
+            Some(_) => {}
+        }
+    }
+    paths::run(paths::git(&repo).args(["worktree", "remove", &wt.path]))?;
+    paths::run(paths::git(&repo).args(["branch", "-D", &branch])).map(|_| ())
 }
 
 #[cfg(test)]

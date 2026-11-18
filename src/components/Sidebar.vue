@@ -4,7 +4,7 @@ import {
   Bot,
   ChevronsUpDown,
   Cloud,
-  Gamepad2,
+  MonitorPlay,
   CloudOff,
   GitPullRequest,
   Images,
@@ -100,7 +100,7 @@ function goTo(id: RouteName) {
         </template>
       </PickMenu>
       <button v-if="project" class="play" title="Lancer le projet (P)" :disabled="!project.present" @click="playGame()">
-        <Gamepad2 :size="16" />
+        <MonitorPlay :size="16" />
       </button>
     </div>
 

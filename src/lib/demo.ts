@@ -134,7 +134,7 @@ const worktrees: Record<string, Worktree[]> = {
 
 const prs: Record<string, PullRequest[]> = {
   frostholm: [
-    { number: 42, title: "FRO-4 Talents : afficher le coût en points", state: "open", branch: "fro-4-talents-cout", base: "main", url: "https://github.com/ada/frostholm/pull/42", author: "ada", updatedAt: ago(190), mergedAt: null, additions: 184, deletions: 22, review: "none", checks: "pass" },
+    { number: 42, title: "FRO-4 Talents : afficher le coût en points", state: "merged", branch: "fro-4-talents-cout", base: "main", url: "https://github.com/ada/frostholm/pull/42", author: "ada", updatedAt: ago(190), mergedAt: ago(30), additions: 184, deletions: 22, review: "approved", checks: "pass" },
     { number: 41, title: "FRO-1 Armures (brouillon)", state: "draft", branch: "fro-1-armures", base: "main", url: "https://github.com/ada/frostholm/pull/41", author: "ada", updatedAt: ago(20), mergedAt: null, additions: 512, deletions: 40, review: "none", checks: "pending" },
     { number: 39, title: "Maîtrise de l'arc", state: "merged", branch: "fro-9-arc", base: "main", url: "https://github.com/ada/frostholm/pull/39", author: "ada", updatedAt: ago(1800), mergedAt: ago(1800), additions: 930, deletions: 120, review: "approved", checks: "pass" },
   ],
@@ -458,6 +458,10 @@ export const demoApi: Api = {
   worktreeRemove(project, path) {
     worktrees[project] = (worktrees[project] ?? []).filter((w) => w.path !== path);
     return wait(undefined);
+  },
+  worktreeArchive(project, path) {
+    worktrees[project] = (worktrees[project] ?? []).filter((w) => w.path !== path);
+    return wait(undefined, 600);
   },
 
   prs: (project) => wait(prs[project] ?? [], 400),

@@ -70,6 +70,7 @@ pub fn run() {
             commands::session_stop,
             commands::worktrees_list,
             commands::worktree_remove,
+            commands::worktree_archive,
             commands::prs_list,
             commands::assets_list,
             commands::path_open,

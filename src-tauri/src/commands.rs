@@ -197,6 +197,11 @@ pub async fn worktree_remove(project: String, path: String) -> Result<(), String
     blocking(move || worktrees::remove(&project, &path)).await
 }
 
+#[tauri::command]
+pub async fn worktree_archive(project: String, path: String) -> Result<(), String> {
+    blocking(move || worktrees::archive(&project, &path)).await
+}
+
 // GitHub, assets, opening things ----------------------------------------------------------------------------------
 
 #[tauri::command]

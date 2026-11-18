@@ -103,6 +103,20 @@ pub fn list(project_id: &str) -> Result<Vec<PullRequest>, String> {
     Ok(values.iter().map(to_pr).collect())
 }
 
+/// The merged PR whose head was `branch`, with the commit it was merged at; none without a GitHub repo.
+pub fn merged_pr(project: &store::Project, branch: &str) -> Result<Option<(u64, String)>, String> {
+    if project.meta.github.is_empty() {
+        return Ok(None);
+    }
+    let out = paths::run(Command::new("gh").args([
+        "pr", "list", "--repo", &project.meta.github, "--head", branch, "--state", "merged", "--limit", "1", "--json",
+        "number,headRefOid",
+    ]))
+    .map_err(|e| format!("gh pr list : {e}"))?;
+    let values: Vec<Value> = serde_json::from_str(&out).map_err(|e| e.to_string())?;
+    Ok(values.first().and_then(|v| Some((v["number"].as_u64()?, v["headRefOid"].as_str()?.to_string()))))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

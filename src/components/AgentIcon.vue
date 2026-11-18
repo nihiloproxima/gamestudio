@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Gamepad2, Sparkles, SquareTerminal, Hexagon, Braces } from "lucide-vue-next";
+import { MonitorPlay, Sparkles, SquareTerminal, Hexagon, Braces } from "lucide-vue-next";
 import type { AgentKind } from "../domain/types";
 
 defineProps<{ agent: AgentKind; size?: number }>();
@@ -9,7 +9,7 @@ defineProps<{ agent: AgentKind; size?: number }>();
   <Sparkles v-if="agent === 'claude'" :size="size ?? 14" class="agent claude" />
   <Hexagon v-else-if="agent === 'codex'" :size="size ?? 14" class="agent codex" />
   <Braces v-else-if="agent === 'opencode'" :size="size ?? 14" class="agent opencode" />
-  <Gamepad2 v-else-if="agent === 'game'" :size="size ?? 14" class="agent game" />
+  <MonitorPlay v-else-if="agent === 'game'" :size="size ?? 14" class="agent game" />
   <SquareTerminal v-else :size="size ?? 14" class="agent shell" />
 </template>
 

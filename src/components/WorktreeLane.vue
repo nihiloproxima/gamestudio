@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Bot, Code, FolderGit2, Gamepad2, GitBranch, GitMerge, GitPullRequest, SquareTerminal, Trash2 } from "lucide-vue-next";
+import { Archive, Bot, Code, FolderGit2, GitBranch, GitMerge, GitPullRequest, MonitorPlay, SquareTerminal, Trash2 } from "lucide-vue-next";
 import AgentIcon from "./AgentIcon.vue";
 import StatusDot from "./StatusDot.vue";
 import type { Session, Worktree } from "../domain/types";
-import { confirmAsk, fail, go, itemsById, now, playGame, project, refreshWorktrees, startSession, statusOf, store } from "../state/store";
+import { confirmAsk, fail, go, notify, itemsById, now, playGame, project, refreshWorktrees, startSession, statusOf, store } from "../state/store";
 import { api } from "../lib/api";
 import { mentionedIds, prForBranch } from "../lib/links";
 import { ago, tilde } from "../lib/format";
@@ -37,7 +37,26 @@ async function removeWorktree(w: Worktree) {
   }
 }
 
+async function archiveWorktree(w: Worktree) {
+  const base = project.value?.base ?? "la base";
+  const text = `Archiver ${w.branch} ? Le worktree et la branche locale sont supprimés, son travail est déjà dans ${base}.`;
+  if (!(await confirmAsk(text, "Archiver"))) return;
+  try {
+    await api.worktreeArchive(store.projectId, w.path);
+    await refreshWorktrees();
+    notify(`${w.branch} archivée`);
+  } catch (e) {
+    fail(e, "Archivage");
+  }
+}
+
 const live = () => props.sessions.some((s) => s.status !== "offline");
+
+/** Its work looks landed: nothing ahead of the base, or its PR merged. The core checks again before deleting. */
+function landed(w: Worktree) {
+  if (w.main || !w.branch || w.dirty > 0 || live()) return false;
+  return (w.ahead === 0 && w.lastCommit !== null) || prForBranch(store.prs, w.branch)?.state === "merged";
+}
 </script>
 
 <template>
@@ -50,7 +69,7 @@ const live = () => props.sessions.some((s) => s.status !== "offline");
         <StatusDot v-if="sessions.length" :status="statusOf(sessions)" />
         <span class="grow" />
         <div class="lane-tools">
-          <button class="btn btn-ghost btn-sm btn-icon" title="Jouer ici" @click="playGame(worktree.path)"><Gamepad2 /></button>
+          <button class="btn btn-ghost btn-sm btn-icon" title="Lancer le projet ici" @click="playGame(worktree.path)"><MonitorPlay /></button>
           <button class="btn btn-ghost btn-sm btn-icon" title="Terminal ici" @click="shellHere(worktree.path)"><SquareTerminal /></button>
           <button class="btn btn-ghost btn-sm btn-icon" title="Agent ici" @click="store.launch = { path: worktree.main ? undefined : worktree.path }"><Bot /></button>
           <button class="btn btn-ghost btn-sm btn-icon" title="Ouvrir dans VS Code" @click="code(worktree.path)"><Code /></button>
@@ -75,6 +94,9 @@ const live = () => props.sessions.some((s) => s.status !== "offline");
             <GitMerge v-if="pr.state === 'merged'" :size="11" /><GitPullRequest v-else :size="11" />#{{ pr.number }}
           </span>
         </template>
+        <button v-if="landed(worktree)" class="fact archive" title="Supprimer le worktree et sa branche locale" @click="archiveWorktree(worktree)">
+          <Archive :size="11" />Archiver
+        </button>
       </div>
       <p v-if="worktree.lastCommit" class="commit"><span class="muted">{{ ago(worktree.lastCommitAt, now) }}</span> {{ worktree.lastCommit }}</p>
     </template>
@@ -169,6 +191,14 @@ const live = () => props.sessions.some((s) => s.status !== "offline");
 }
 .fact.pr.pass {
   color: var(--ok);
+}
+.fact.archive {
+  color: var(--text);
+  cursor: pointer;
+}
+.fact.archive:hover {
+  background: var(--surface-1);
+  color: var(--bright);
 }
 .commit {
   margin: 6px 4px 4px;
